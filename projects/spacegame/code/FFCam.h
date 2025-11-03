@@ -22,11 +22,13 @@ struct FFCam
 
     const float normalSpeed = 1.0f;
     const float boostSpeed = normalSpeed * 2.0f;
-    const float accelerationFactor = 1.0f;
+    const float accelerationFactor = 50.0f;
     const float camOffsetY = 1.0f;
-    const float cameraSmoothFactor = 10.0f;
+    const float cameraSmoothFactor = 50.0f;
 
-    float currentSpeed = 0.0f;
+    float currentSpeedFB = 0.0f;
+    float currentSpeedLR = 0.0f;
+    float currentSpeedTD = 0.0f;
 
     float rotationZ = 0;
     float rotXSmooth = 0;

@@ -53,48 +53,64 @@ namespace Game
 
         // Handle movement
         vec3 desiredVelocity = vec3(0);
+        vec3 copyVelocity = vec3(0);
 
+    
+
+        // Forward/Backward movement
         if (kbd->held[Key::W] || kbd->held[Key::S])
         {
             float moveDirectionFB = kbd->held[Key::W] ? 1.0f : -1.0f;
+            float targetSpeedFB;
 
             if (kbd->held[Key::Shift])
-                this->currentSpeed = mix(this->currentSpeed, this->boostSpeed * moveDirectionFB, std::min(1.0f, dt * 30.0f));
+                targetSpeedFB = this->boostSpeed * moveDirectionFB;
             else
-                this->currentSpeed = mix(this->currentSpeed, this->normalSpeed * moveDirectionFB, std::min(1.0f, dt * 90.0f));
+                targetSpeedFB = this->normalSpeed * moveDirectionFB;
 
-            desiredVelocity = vec3(0, 0, this->currentSpeed);
+            this->currentSpeedFB = mix(this->currentSpeedFB, targetSpeedFB, std::min(1.0f, dt * (kbd->held[Key::Shift] ? 30.0f : 90.0f)));
+            copyVelocity.z += this->currentSpeedFB;
         }
-        else if (kbd->held[Key::A] || kbd->held[Key::D])
+
+        // Left/Right movement  
+        if (kbd->held[Key::A] || kbd->held[Key::D])
         {
             float moveDirectionLR = kbd->held[Key::A] ? 1.0f : -1.0f;
+            float targetSpeedLR;
 
             if (kbd->held[Key::Shift])
-                this->currentSpeed = mix(this->currentSpeed, this->boostSpeed * moveDirectionLR, std::min(1.0f, dt * 30.0f));
+                targetSpeedLR = this->boostSpeed * moveDirectionLR;
             else
-                this->currentSpeed = mix(this->currentSpeed, this->normalSpeed * moveDirectionLR, std::min(1.0f, dt * 90.0f));
+                targetSpeedLR = this->normalSpeed * moveDirectionLR;
 
-            desiredVelocity = vec3(this->currentSpeed, 0, 0);
-           
+            this->currentSpeedLR = mix(this->currentSpeedLR, targetSpeedLR, std::min(1.0f, dt * (kbd->held[Key::Shift] ? 30.0f : 90.0f)));
+            copyVelocity.x += this->currentSpeedLR;
         }
-        else if (kbd->held[Key::E] || kbd->held[Key::Q])
+
+        // Up/Down movement
+        if (kbd->held[Key::E] || kbd->held[Key::Q])
         {
             float moveDirectionTD = kbd->held[Key::E] ? 1.0f : -1.0f;
+            float targetSpeedTD;
 
             if (kbd->held[Key::Shift])
-                this->currentSpeed = mix(this->currentSpeed, this->boostSpeed * moveDirectionTD, std::min(1.0f, dt * 30.0f));
+                targetSpeedTD = this->boostSpeed * moveDirectionTD;
             else
-                this->currentSpeed = mix(this->currentSpeed, this->normalSpeed * moveDirectionTD, std::min(1.0f, dt * 90.0f));
+                targetSpeedTD = this->normalSpeed * moveDirectionTD;
 
-            desiredVelocity = vec3(0, this->currentSpeed, 0);
-
+            this->currentSpeedTD = mix(this->currentSpeedTD, targetSpeedTD, std::min(1.0f, dt * (kbd->held[Key::Shift] ? 30.0f : 90.0f)));
+            copyVelocity.y += this->currentSpeedTD;
         }
-        else
+
+        // Only set speed to zero if no movement keys are pressed
+        if (!(kbd->held[Key::W] || kbd->held[Key::S] || kbd->held[Key::A] || kbd->held[Key::D] || kbd->held[Key::E] || kbd->held[Key::Q]))
         {
-
-            this->currentSpeed = 0;
-
+            this->currentSpeedFB = 0.0f;
+            this->currentSpeedLR = 0.0f;
+            this->currentSpeedTD = 0.0f;
         }
+
+        desiredVelocity = copyVelocity + desiredVelocity;
         desiredVelocity = this->transform * vec4(desiredVelocity, 0.0f);
         this->linearVelocity = mix(this->linearVelocity, desiredVelocity, dt * accelerationFactor);
 
