@@ -18,7 +18,7 @@
 #include "render/input/inputserver.h"
 #include "core/cvar.h"
 #include <chrono>
-#include "spaceship.h"
+#include "FFCam.h"
 
 using namespace Display;
 using namespace Render;
@@ -116,8 +116,7 @@ SpaceGameApp::Run()
         lights[i] = Render::LightServer::CreatePointLight(translation, color, Core::RandomFloat() * 4.0f, 1.0f + (15 + Core::RandomFloat() * 10.0f));
     }
 
-    SpaceShip ship;
-    ship.model = LoadModel("assets/space/Cube.glb");
+    FFCam ffCam;
 
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
@@ -133,18 +132,27 @@ SpaceGameApp::Run()
         
         this->window->Update();
 
+        // Handle cursor show/hide on right mouse button
+        Input::Mouse* mouse = Input::GetDefaultMouse();
+        if (mouse->pressed[mouse->RightButton])
+        {
+            glfwSetInputMode(this->window->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
+        if (mouse->released[mouse->RightButton])
+        {
+            glfwSetInputMode(this->window->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
         if (kbd->pressed[Input::Key::Code::End])
         {
             ShaderResource::ReloadShaders();
         }
 
-        ship.Update(dt);
+        ffCam.Update(dt);
 
 
         // Draw some debug text
         Debug::DrawDebugText("FOOBAR", glm::vec3(0), {1,0,0,1});
-
-        RenderDevice::Draw(ship.model, ship.transform);
 
         // Execute the entire rendering pipeline
         RenderDevice::Render(this->window, dt);

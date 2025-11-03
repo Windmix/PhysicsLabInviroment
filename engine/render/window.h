@@ -26,7 +26,7 @@ public:
 	/// get size of windows
 	void GetSize(int32 & width, int32 & height);
 	/// set title of window
-	void SetTitle(const std::string& title);
+	void SetTitle(const std::string& title)	;
 
 	/// open window
 	bool Open();
@@ -61,6 +61,8 @@ public:
 	
 	/// get pos of mouse
 	void GetMousePos(float64& x, float64& y);
+
+	GLFWwindow* window;
 
 private:
 
@@ -107,7 +109,7 @@ private:
 	int32 width;
 	int32 height;
 	std::string title;
-	GLFWwindow* window;
+	
 };
 
 //------------------------------------------------------------------------------

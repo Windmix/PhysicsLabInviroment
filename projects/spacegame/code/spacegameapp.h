@@ -25,8 +25,9 @@ public:
 	void Run();
 	/// exit app
 	void Exit();
-private:
 
+	
+private:
 	/// show some ui things
 	void RenderUI();
 

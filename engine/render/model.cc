@@ -366,8 +366,8 @@ LoadModel(std::string name)
 		return mid;
 	}
 
-	n_warning("Trying to load invalid model named '%s'!\n", name.c_str());
-	return LoadModel("assets/error.glb");
+	//n_warning("Trying to load invalid model named '%s'!\n", name.c_str());
+	return ModelId();
 }
 
 //------------------------------------------------------------------------------
