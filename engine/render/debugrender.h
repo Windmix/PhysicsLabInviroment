@@ -17,7 +17,8 @@ enum RenderMode
 {
 	Normal = 1,
 	AlwaysOnTop = 2,
-	WireFrame = 4
+	WireFrame = 4,
+	DoubleSided = 8
 };
 
 ///Draw text in screenspace
@@ -30,6 +31,10 @@ void DrawBox(const glm::vec3& position, const glm::quat& rotation, const float s
 void DrawBox(const glm::vec3& position, const glm::quat& rotation, const float width, const float height, const float length, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
 ///Draws a colored box with transform
 void DrawBox(const glm::mat4& transform, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
+//Draws a colored quad defined by four corner points
+void DrawQuad(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
+///Draws a colored quad at position with orientation and dimensions
+void DrawQuad(const glm::vec3& center, const glm::vec3& normal, const glm::vec3& up, float width, float height, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
 
 void InitDebugRendering();
 void DispatchDebugDrawing();

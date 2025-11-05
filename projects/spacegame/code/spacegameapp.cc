@@ -19,6 +19,8 @@
 #include "core/cvar.h"
 #include <chrono>
 #include "FFCam.h"
+#include "render/mathray.h"
+#include <render/quad.h>
 
 using namespace Display;
 using namespace Render;
@@ -50,7 +52,7 @@ SpaceGameApp::Open()
 {
 	App::Open();
 	this->window = new Display::Window;
-    this->window->SetSize(2500, 2000);
+    this->window->SetSize(2560, 1440);
 
     if (this->window->Open())
 	{
@@ -117,6 +119,19 @@ SpaceGameApp::Run()
     }
 
     FFCam ffCam;
+    MathRay ray;
+    glm::vec3 v0(-1.0f, 0.0f, -1.0f);
+    glm::vec3 v1(1.0f, 0.0f, -1.0f);
+    glm::vec3 v2(1.0f, 0.0f, 1.0f);
+    glm::vec3 v3(-1.0f, 0.0f, 1.0f);
+
+    Quad myQuad(v0, v1, v2, v3, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)); 
+    MathPlane Plane(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    bool drawRay = false;
+    bool rayIsHit = false;
+
+    glm::vec3 SavedOrigin, SavedEnd;
+    Physics::RayProperties rayProperties;
 
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
@@ -147,13 +162,55 @@ SpaceGameApp::Run()
         {
             ShaderResource::ReloadShaders();
         }
+        ffCam.Update(dt); 
+       
+   
 
-        ffCam.Update(dt);
+      
+       
+
+      
+        Debug::DrawQuad(myQuad.v0, myQuad.v1, myQuad.v2, myQuad.v3, myQuad.color,  Debug::DoubleSided, 2.0f);
+
+        if(mouse->pressed[mouse->LeftButton])
+        {
+            ray = Physics::ScreenPointToRay(mouse->position, w, h);
+            drawRay = true;
+            rayIsHit = Physics::CheckRayHit(myQuad, ray,Plane,  rayProperties);
+
+         
+        }
+        if (mouse->released[mouse->LeftButton])
+        {
+
+            drawRay = false;
+
+        }
+        if (rayIsHit)
+            Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
+
+        if (drawRay)
+        {
+            Debug::DrawLine(SavedOrigin = ray.GetOrigin(), SavedEnd = ray.GetOrigin() + ray.GetDirection() * ray.GetRayLength(), 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+           
+        }
+        else
+        {
+           
+            Debug::DrawLine(SavedOrigin, SavedEnd, 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+            
+           
+        }
+           
 
 
+     
+
+  
+           
         // Draw some debug text
-        Debug::DrawDebugText("FOOBAR", glm::vec3(0), {1,0,0,1});
 
+        Debug::DrawDebugText("FOOBAR", glm::vec3(0), { 1,0,0,1 });
         // Execute the entire rendering pipeline
         RenderDevice::Render(this->window, dt);
 

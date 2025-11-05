@@ -29,6 +29,12 @@ SET(files_render_render
 	resourceid.h
 	particlesystem.cc
 	particlesystem.h
+	mathplane.h
+	mathplane.cc
+	mathray.h
+	mathray.cc
+	quad.h
+	quad.cc	
 	
 	# external single header libs
 	stb_image.h

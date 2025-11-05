@@ -18,6 +18,7 @@ enum DebugShape
 	LINE,
 	SPHERE,
 	BOX,
+	QUAD,
 	CONE,
 	CAPSULE,
 	FRUSTUM,
@@ -43,6 +44,12 @@ struct LineCommand : public RenderCommand
 struct BoxCommand : public RenderCommand
 {
 	glm::mat4 transform = glm::mat4();
+	glm::vec4 color = glm::vec4(1.0f);
+};
+
+struct QuadCommand : public RenderCommand
+{
+	glm::vec3 corners[4];
 	glm::vec4 color = glm::vec4(1.0f);
 };
 
@@ -121,6 +128,33 @@ void DrawBox(const glm::mat4& transform, const glm::vec4& color, const RenderMod
 	cmd->rendermode = renderModes;
 	cmds.push(cmd);
 }
+void DrawQuad(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, const glm::vec4& color, const RenderMode renderModes, const float lineWidth)
+{
+	QuadCommand* cmd = new QuadCommand();
+	cmd->shape = DebugShape::QUAD;
+	cmd->corners[0] = p0;
+	cmd->corners[1] = p1;
+	cmd->corners[2] = p2;
+	cmd->corners[3] = p3;
+	cmd->linewidth = lineWidth;
+	cmd->color = color;
+	cmd->rendermode = renderModes;
+	cmds.push(cmd);
+}
+
+void DrawQuad(const glm::vec3& center, const glm::vec3& normal, const glm::vec3& up, float width, float height, const glm::vec4& color, const RenderMode renderModes, const float lineWidth)
+{
+	glm::vec3 right = glm::normalize(glm::cross(normal, up));
+	glm::vec3 scaledUp = glm::normalize(up) * height * 0.5f;
+	glm::vec3 scaledRight = right * width * 0.5f;
+
+	glm::vec3 p0 = center - scaledRight - scaledUp;
+	glm::vec3 p1 = center + scaledRight - scaledUp;
+	glm::vec3 p2 = center + scaledRight + scaledUp;
+	glm::vec3 p3 = center - scaledRight + scaledUp;
+
+	DrawQuad(p0, p1, p2, p3, color, renderModes, lineWidth);
+}
 
 void SetupShaders()
 {
@@ -133,6 +167,11 @@ void SetupShaders()
 	Render::ShaderResourceId const psLine = Render::ShaderResource::LoadShader(Render::ShaderResource::ShaderType::FRAGMENTSHADER, "shd/debug_lines.fs");
 	Render::ShaderProgramId const progLine = Render::ShaderResource::CompileShaderProgram({ vsLine, psLine });
 	shaders[DebugShape::LINE] = Render::ShaderResource::GetProgramHandle(progLine);
+
+	Render::ShaderResourceId const vsQuad = Render::ShaderResource::LoadShader(Render::ShaderResource::ShaderType::VERTEXSHADER, "shd/debug.vs");
+	Render::ShaderResourceId const psQuad = Render::ShaderResource::LoadShader(Render::ShaderResource::ShaderType::FRAGMENTSHADER, "shd/debug.fs");
+	Render::ShaderProgramId const progQuad = Render::ShaderResource::CompileShaderProgram({ vsQuad, psQuad });
+	shaders[DebugShape::QUAD] = Render::ShaderResource::GetProgramHandle(progQuad);
 }
 
 void SetupLine()
@@ -217,6 +256,41 @@ void SetupBox()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
+void SetupQuad()
+{
+	// Quad vertices (two triangles to form a quad)
+	const GLfloat quadVertices[] = {
+		// positions
+		0.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f
+	};
+
+	const GLuint quadIndices[] = {
+		0, 1, 2,  // first triangle
+		0, 2, 3   // second triangle
+	};
+
+	glGenVertexArrays(1, &vao[DebugShape::QUAD]);
+	glBindVertexArray(vao[DebugShape::QUAD]);
+
+	glGenBuffers(1, &vbo[DebugShape::QUAD]);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[DebugShape::QUAD]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+
+	glGenBuffers(1, &ib[DebugShape::QUAD]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ib[DebugShape::QUAD]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
 //------------------------------------------------------------------------------
 /**
 	Setup debug rendering context
@@ -226,6 +300,7 @@ void InitDebugRendering()
 	SetupShaders();
 	SetupLine();
 	SetupBox();
+	SetupQuad();
 }
 
 void RenderLine(RenderCommand* command)
@@ -320,6 +395,78 @@ void RenderBox(RenderCommand* command)
 	glBindVertexArray(0);
 }
 
+void RenderQuad(RenderCommand* command)
+{
+	QuadCommand* cmd = (QuadCommand*)command;
+
+	glUseProgram(shaders[DebugShape::QUAD]);
+	glBindVertexArray(vao[DebugShape::QUAD]);
+
+	static GLuint colorLoc = glGetUniformLocation(shaders[DebugShape::QUAD], "color");
+	static GLuint modelLoc = glGetUniformLocation(shaders[DebugShape::QUAD], "model");
+	static GLuint viewProjectionLoc = glGetUniformLocation(shaders[DebugShape::QUAD], "viewProjection");
+
+	glUniform4fv(colorLoc, 1, &cmd->color[0]);
+
+
+	// Calculate transformation matrix from the quad corners
+	glm::vec3 right = cmd->corners[1] - cmd->corners[0];
+	glm::vec3 up = cmd->corners[3] - cmd->corners[0];
+	glm::vec3 normal = glm::normalize(glm::cross(right, up));
+
+	glm::mat4 transform(1.0f);
+	transform[0] = glm::vec4(right, 0.0f);
+	transform[1] = glm::vec4(up, 0.0f);
+	transform[2] = glm::vec4(normal, 0.0f);
+	transform[3] = glm::vec4(cmd->corners[0], 1.0f);
+
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &transform[0][0]);
+
+	Render::Camera* const mainCamera = Render::CameraManager::GetCamera(CAMERA_MAIN);
+	glUniformMatrix4fv(viewProjectionLoc, 1, GL_FALSE, &mainCamera->viewProjection[0][0]);
+
+	if ((cmd->rendermode & RenderMode::AlwaysOnTop) == RenderMode::AlwaysOnTop)
+	{
+		glDepthFunc(GL_ALWAYS);
+		glDepthRange(0.0f, 0.01f);
+	}
+
+
+	 //Control via DoubleSided flag
+	 if ((cmd->rendermode & RenderMode::DoubleSided) == RenderMode::DoubleSided)
+	 {
+	     glDisable(GL_CULL_FACE);
+	 }
+
+	if ((cmd->rendermode & RenderMode::WireFrame) == RenderMode::WireFrame)
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glLineWidth(cmd->linewidth);
+	}
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	// Restore state
+	if ((cmd->rendermode & RenderMode::WireFrame) == RenderMode::WireFrame)
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
+	
+	 if ((cmd->rendermode & RenderMode::DoubleSided) == RenderMode::DoubleSided)
+	 {
+	     glEnable(GL_CULL_FACE);
+	 }
+
+	if ((cmd->rendermode & RenderMode::AlwaysOnTop) == RenderMode::AlwaysOnTop)
+	{
+		glDepthFunc(GL_LEQUAL);
+		glDepthRange(0.0f, 1.0f);
+	}
+
+	glBindVertexArray(0);
+}
+
 void DispatchDebugDrawing()
 {
 	while (!cmds.empty())
@@ -336,6 +483,11 @@ void DispatchDebugDrawing()
 		case DebugShape::BOX:
 		{
 			RenderBox(currentCommand);
+			break;
+		}
+		case DebugShape::QUAD: 
+		{
+			RenderQuad(currentCommand);
 			break;
 		}
 		default:
