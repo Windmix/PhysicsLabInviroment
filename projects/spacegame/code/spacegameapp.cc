@@ -21,6 +21,9 @@
 #include "FFCam.h"
 #include "render/mathray.h"
 #include <render/quad.h>
+#include "render/betterphysics.h"
+#include "string.h"
+#include "render/object.h"
 
 using namespace Display;
 using namespace Render;
@@ -120,15 +123,43 @@ SpaceGameApp::Run()
 
     FFCam ffCam;
     MathRay ray;
+    std::vector<Quad> Quads;
+    Object obj;
+    obj.createObject("assets/space/Cube.glb");
+    obj.SetScale(glm::vec3(0.1f) );
+
     glm::vec3 v0(-1.0f, 0.0f, -1.0f);
-    glm::vec3 v1(1.0f, 0.0f, -1.0f);
+    glm::vec3 v1(1.0f, 0.0f , -1.0f);
     glm::vec3 v2(1.0f, 0.0f, 1.0f);
     glm::vec3 v3(-1.0f, 0.0f, 1.0f);
 
-    Quad myQuad(v0, v1, v2, v3, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)); 
-    MathPlane Plane(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    for (int i = 0; i < 2; i++)
+    {
+
+
+        glm::vec4 color(
+            static_cast<float>(rand()) / RAND_MAX,
+            static_cast<float>(rand()) / RAND_MAX,
+            static_cast<float>(rand()) / RAND_MAX,
+            1.0f
+        );
+
+      
+        auto quad = Quad(v0, v1, v2, v3, color);
+       
+       
+      
+       auto newPos = glm::vec3(0.0f + i * 10.0f, 0.0f + i * 10.0f, 0.0f);
+       quad.SetPosition(newPos);
+
+       Quads.push_back(quad);
+  
+
+       
+    }
     bool drawRay = false;
-    bool rayIsHit = false;
+    float angle = 1.0f;
+  
 
     glm::vec3 SavedOrigin, SavedEnd;
     Physics::RayProperties rayProperties;
@@ -162,23 +193,40 @@ SpaceGameApp::Run()
         {
             ShaderResource::ReloadShaders();
         }
-        ffCam.Update(dt); 
-       
-   
 
-      
-       
+        //Free flight cam
+        ffCam.Update(dt);
 
-      
-        Debug::DrawQuad(myQuad.v0, myQuad.v1, myQuad.v2, myQuad.v3, myQuad.color,  Debug::DoubleSided, 2.0f);
+        //text
+        auto text = std::to_string(Quads[0].GetRotation().x) + " , " + std::to_string(Quads[0].GetRotation().y) + " , " + std::to_string(Quads[0].GetRotation().z);
+        Debug::DrawDebugText(text.c_str(), glm::vec3(0), {1,0,0,1});
 
-        if(mouse->pressed[mouse->LeftButton])
+        for (int i = 0; i < Quads.size(); i++)
         {
-            ray = Physics::ScreenPointToRay(mouse->position, w, h);
-            drawRay = true;
-            rayIsHit = Physics::CheckRayHit(myQuad, ray,Plane,  rayProperties);
+            Debug::DrawQuad(Quads[i].v0, Quads[i].v1, Quads[i].v2, Quads[i].v3, Quads[i].color, Debug::DoubleSided, 1.0f);
+            Quads[i].SetRotation(glm::vec3(1.0f, 1.0f, 0.0f), angle = dt);
+            glm::vec3 start = Quads[i].plane.getOrigin();
+            glm::vec3 end = start + Quads[i].plane.GetNormal();
+            Debug::DrawLine(start, end, 1.0f, glm::vec4(1, 0, 0, 1), glm::vec4(1, 0, 0, 1));
+             
+        }
+        //who get hit?
+        for (int i = 0; i < Quads.size(); i++)
+        {
+           
+            if (mouse->held[mouse->LeftButton])
+            {
+                ray = Physics::ScreenPointToRay(mouse->position, w, h);
+                drawRay = true;
+                Quads[i].isHit = Physics::CheckRayHit(Quads[i], ray, rayProperties);
+            }
+            
+            if (Quads[i].isHit)
+            {
+                Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
+                break;
+            }
 
-         
         }
         if (mouse->released[mouse->LeftButton])
         {
@@ -186,9 +234,8 @@ SpaceGameApp::Run()
             drawRay = false;
 
         }
-        if (rayIsHit)
-            Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-
+        
+        //drawLazer
         if (drawRay)
         {
             Debug::DrawLine(SavedOrigin = ray.GetOrigin(), SavedEnd = ray.GetOrigin() + ray.GetDirection() * ray.GetRayLength(), 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
@@ -196,13 +243,12 @@ SpaceGameApp::Run()
         }
         else
         {
-           
             Debug::DrawLine(SavedOrigin, SavedEnd, 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-            
-           
         }
-           
-
+        obj.aabb.drawBox(glm::mat4(1));
+        obj.drawObject();
+       
+    
 
      
 
@@ -210,7 +256,7 @@ SpaceGameApp::Run()
            
         // Draw some debug text
 
-        Debug::DrawDebugText("FOOBAR", glm::vec3(0), { 1,0,0,1 });
+      
         // Execute the entire rendering pipeline
         RenderDevice::Render(this->window, dt);
 

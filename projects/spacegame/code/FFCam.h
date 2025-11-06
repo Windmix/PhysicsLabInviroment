@@ -51,15 +51,3 @@ struct FFCam
 };
 
 }
-namespace Physics
-{
-    struct RayProperties
-    {
-        glm::vec3 intersection, normalEnd;
-    };
-    MathRay ScreenPointToRay(glm::vec2& mousePos, float ScreenWidth, float ScreenHeight);
-    bool CheckRayHit(Quad& myQuad, MathRay& ray, MathPlane& plane, RayProperties& rayproperties);
-
-
-    
-}  

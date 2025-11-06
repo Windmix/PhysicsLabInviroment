@@ -16,6 +16,7 @@ public:
     ~MathPlane();
 
     glm::vec3 GetNormal() const { return m_normal; }
+    glm::vec3 getOrigin() const { return m_point;  }
     glm::vec4 GetEquation() const { return glm::vec4(m_normal, m_d); }
     float GetDistance() const { return m_d; }
 
@@ -29,6 +30,7 @@ public:
 
 private:
     glm::vec3 m_normal;
+    glm::vec3 m_point;
     float m_d;
 };
 

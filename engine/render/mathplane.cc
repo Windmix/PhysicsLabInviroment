@@ -57,6 +57,7 @@ void MathPlane::SetFromPoints(const glm::vec3& p1, const glm::vec3& p2, const gl
 void MathPlane::SetFromNormalAndPoint(const glm::vec3& normal, const glm::vec3& point)
 {
     m_normal = glm::normalize(normal);
+    m_point = point;
     m_d = -glm::dot(m_normal, point);
 }
 

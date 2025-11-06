@@ -34,7 +34,11 @@ SET(files_render_render
 	mathray.h
 	mathray.cc
 	quad.h
-	quad.cc	
+	quad.cc
+	betterphysics.h
+	betterphysics.cc
+	object.h
+	object.cc
 	
 	# external single header libs
 	stb_image.h
