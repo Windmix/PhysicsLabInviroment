@@ -72,10 +72,13 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
     {
         Face& f = faces[i];
         float denom = glm::dot(f.normal, rayDir);
-        if (fabs(denom) < epsilon) continue; // parallel
+
+        // if parallel
+        if (fabs(denom) < epsilon) continue;
 
         float t = glm::dot(f.point - rayOrigin, f.normal) / denom;
-        if (t < 0 || t > closestT) continue; // behind or farther than previous hit
+        // behind or farther than previous hit
+        if (t < 0 || t > closestT) continue;
 
         glm::vec3 intersect = rayOrigin + rayDir * t;
 
@@ -103,10 +106,7 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
             rayproperties.AABBnormalEnd.y,
             rayproperties.AABBnormalEnd.z);
     }
-    else
-    {
-        printf("AABB MISS\n");
-    }
+
 
     return hit;
 }

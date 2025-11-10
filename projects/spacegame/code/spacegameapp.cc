@@ -167,18 +167,13 @@ SpaceGameApp::Run()
     std::vector<Object> objs;
     for (int i = 0; i < 3; i++)
     {
-
-
         glm::vec4 color(
             static_cast<float>(rand()) / RAND_MAX,
             static_cast<float>(rand()) / RAND_MAX,
             static_cast<float>(rand()) / RAND_MAX,
-            1.0f
-        );
-
+            1.0f);
 
         Object obj;
-
 
         std::string filePath = "assets/space/Cube.glb";
         obj.createObject(filePath);
@@ -188,6 +183,7 @@ SpaceGameApp::Run()
             doc = fx::gltf::LoadFromBinary(filePath);
         else
             doc = fx::gltf::LoadFromText(filePath);
+
         Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
         obj.SetScale(glm::vec3(1.0f));
         auto newPos = glm::vec3(0.0f + i * 10.0f, 0.0f + i * 10.0f, 0.0f);
@@ -208,12 +204,8 @@ SpaceGameApp::Run()
 
     }
 
-
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
-
-    
-
 
     // game loop
     while (this->window->IsOpen())
@@ -330,7 +322,7 @@ SpaceGameApp::Run()
         }
 
         int hitIndex = -1;
-       float closestDistance = std::numeric_limits<float>::max();
+       float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
 
        //closes one who get hit?
        for (int i = 0; i < objs.size(); i++)
@@ -360,16 +352,13 @@ SpaceGameApp::Run()
        }
        if (mouse->released[mouse->LeftButton])
        {
-
            drawRay = false;
-
        }
         
-        //drawLazer
+        //draw Lazer
         if (drawRay)
         {
-            Debug::DrawLine(SavedOrigin = ray.GetOrigin(), SavedEnd = ray.GetOrigin() + ray.GetDirection() * ray.GetRayLength(), 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-           
+            Debug::DrawLine(SavedOrigin = ray.GetOrigin(), SavedEnd = ray.GetOrigin() + ray.GetDirection() * ray.GetRayLength(), 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)); 
         }
         else
         {
