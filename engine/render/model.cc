@@ -333,7 +333,7 @@ LoadGLTF(std::string const& uri)
 			}
 
             glBindVertexArray(0);
-
+			
             m.primitives.push_back(std::move(p));
         }
 		model.meshes.push_back(std::move(m));
@@ -373,6 +373,8 @@ LoadModel(std::string name)
 //------------------------------------------------------------------------------
 /**
 */
+
+
 void
 UnloadModel(ModelId mid)
 {

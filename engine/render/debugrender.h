@@ -32,9 +32,9 @@ void DrawBox(const glm::vec3& position, const glm::quat& rotation, const float w
 ///Draws a colored box with transform
 void DrawBox(const glm::mat4& transform, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
 //Draws a colored quad defined by four corner points
-void DrawQuad(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
+void DrawTriangle(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color, const RenderMode renderModes, const float lineWidth = 1.0f);
 ///Draws a colored quad at position with orientation and dimensions
-void DrawQuad(const glm::vec3& center, const glm::vec3& normal, const glm::vec3& up, float width, float height, const glm::vec4& color, const RenderMode renderModes = RenderMode::Normal, const float lineWidth = 1.0f);
+void DrawTriangle(const glm::vec3& center, const glm::vec3& normal, const glm::vec3& up, float width, float height, const glm::vec4& color, const RenderMode renderModes, const float lineWidth = 1.0f);
 
 void InitDebugRendering();
 void DispatchDebugDrawing();

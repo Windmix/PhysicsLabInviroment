@@ -1,15 +1,35 @@
 #pragma once
 #include "cameramanager.h"
 #include "mathray.h"
-#include "quad.h"
 #include "renderdevice.h"
 #include "model.h"
+#include "gltf.h"
 namespace Physics
 {
     struct RayProperties
     {
+        //AABB normals
+        glm::vec3 AABBintersection, AABBnormalEnd;
+        //original Normals
         glm::vec3 intersection, normalEnd;
     };
+
+    struct ColliderMesh
+    {
+        struct Triangle
+        {
+
+            glm::vec4 color;       // current display color
+            glm::vec4 selectedColor; // selected color
+            glm::vec4 og_color; // og color
+
+            glm::vec3 verticies[3];
+            glm::vec3 normal;
+            bool selected = false;
+            void SetSelected(bool s);
+        };
+    };
+
     class AABB
     {
     public:
@@ -18,16 +38,20 @@ namespace Physics
         glm::vec3 max;
 
         AABB();
+        void UpdateAndDrawAABB();
+        void DrawAABB();
+
         void Expand(const glm::vec3& point);
         glm::vec3 GetABBCenter() const;
         glm::vec3 GetABBSize() const;
-        void drawBox(glm::mat4 transform);
+ 
 
     };
+ void LoadFromIndexBuffer(fx::gltf::Document  doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb);
 
     MathRay ScreenPointToRay(glm::vec2& mousePos, float ScreenWidth, float ScreenHeight);
-    bool CheckRayHit(Quad& myQuad, MathRay& ray, RayProperties& rayproperties);
+    bool CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproperties);
 
-
+    
 
 };

@@ -12,6 +12,8 @@
 #include "renderdevice.h"
 #include "resourceid.h"
 #include "textureresource.h"
+#include "betterphysics.h"
+
 
 namespace Render
 {
