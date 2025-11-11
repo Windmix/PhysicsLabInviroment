@@ -165,7 +165,6 @@ void Physics::AABB::Expand(const glm::vec3& point)
 }
 Physics::AABB::AABB() : min(std::numeric_limits<float>::max()),max(std::numeric_limits<float>::lowest())
 {
-    model = Render::LoadModel("assets/space/Cube.glb");
 }
 
 glm::vec3 Physics::AABB::GetABBCenter() const

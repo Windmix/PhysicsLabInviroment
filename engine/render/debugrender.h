@@ -18,7 +18,8 @@ enum RenderMode
 	Normal = 1,
 	AlwaysOnTop = 2,
 	WireFrame = 4,
-	DoubleSided = 8
+	DoubleSided = 8,
+	Filled = 16
 };
 
 ///Draw text in screenspace

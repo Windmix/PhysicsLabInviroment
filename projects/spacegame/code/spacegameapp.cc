@@ -103,28 +103,22 @@ SpaceGameApp::Run()
     
     Input::Keyboard* kbd = Input::GetDefaultKeyboard();
 
-    const int numLights = 40;
+    const int numLights = 3;
     Render::PointLightId lights[numLights];
     // Setup lights
     for (int i = 0; i < numLights; i++)
     {
-        glm::vec3 translation = glm::vec3(
-            Core::RandomFloatNTP() * 20.0f,
-            Core::RandomFloatNTP() * 20.0f,
-            Core::RandomFloatNTP() * 20.0f
-        );
-        glm::vec3 color = glm::vec3(
-            Core::RandomFloat(),
-            Core::RandomFloat(),
-            Core::RandomFloat()
-        );
+        glm::vec3 translation = glm::vec3(0.0f + i * 10.0f, 0.0f + i * 10.0f, 0.0f);
+        glm::vec3 color = glm::vec3(Core::RandomFloat(), Core::RandomFloat(), Core::RandomFloat());
         lights[i] = Render::LightServer::CreatePointLight(translation, color, Core::RandomFloat() * 4.0f, 1.0f + (15 + Core::RandomFloat() * 10.0f));
     }
 
     FFCam ffCam;
     MathRay ray;
-   
-    
+    bool drawRay = false;
+    static float angle = 0.0f; // keep angle across frames
+    glm::vec3 SavedOrigin, SavedEnd;
+    Physics::RayProperties rayProperties;
      
     glm::vec3 v0(-1.0f, 0.0f, -1.0f);
     glm::vec3 v1(1.0f, 0.0f , -1.0f);
@@ -156,15 +150,11 @@ SpaceGameApp::Run()
 
        
     }
-    bool drawRay = false;
-    static float angle = 0.0f; // keep angle across frames
 
-
-    glm::vec3 SavedOrigin, SavedEnd;
-    Physics::RayProperties rayProperties;
-
-    //Create obj
+    //Create obj physics
     std::vector<Object> objs;
+    //create obj2 model
+    std::vector<Object> objs2;
     for (int i = 0; i < 3; i++)
     {
         glm::vec4 color(
@@ -174,8 +164,8 @@ SpaceGameApp::Run()
             1.0f);
 
         Object obj;
-
-        std::string filePath = "assets/space/Cube.glb";
+       
+        std::string filePath = "assets/space/spaceship_physics.glb";
         obj.createObject(filePath);
 
         fx::gltf::Document doc;
@@ -199,6 +189,18 @@ SpaceGameApp::Run()
         obj.UpdateAndDrawAABBObject();
         objs.push_back(obj);
 
+       
+        Object obj2;
+
+        std::string filePath2 = "assets/space/spaceship.glb";
+        obj2.createObject(filePath2);
+
+        obj2.SetScale(glm::vec3(3.0f));
+
+        obj2.SetOBjectPosition(newPos);
+       
+        objs2.push_back(obj2);
+
 
 
 
@@ -207,7 +209,16 @@ SpaceGameApp::Run()
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
 
+    float timeSinceAxisChange = 0.0f;
+
+    //RandomAxis
+    glm::vec3 randomAxis;
+    randomAxis = glm::normalize(glm::vec3(
+        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
     // game loop
+  
     while (this->window->IsOpen())
 	{
         auto timeStart = std::chrono::steady_clock::now();
@@ -299,13 +310,34 @@ SpaceGameApp::Run()
         //}
       
         //render
-        angle += dt;     
+        angle += dt;  
+        timeSinceAxisChange += dt;
+        
+        // random -1..1 axis
+        static glm::vec3 targetAxis;
+
+        float blendSpeed =  2.0 * dt; // adjust speed (0.5–2.0 for slower/faster blend)
+        if (timeSinceAxisChange >= 2.0f)
+        {
+            targetAxis += glm::normalize(glm::vec3(
+                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
+            timeSinceAxisChange = 0.0f;
+        }
+      
+        randomAxis = glm::normalize(glm::mix(randomAxis, targetAxis, blendSpeed));
+
         for (int i = 0; i < objs.size(); i++)
         {
-            // Update AABB
+           
+            // Update AABB and render
             objs[i].UpdateAndDrawAABBObject();
-            objs[i].SetOBjectRotation(glm::vec3(0.0f, 0.0f, 1.0f), angle);
+            objs[i].drawObject();
+            objs[i].SetOBjectRotation(randomAxis, angle);
             
+            
+
             // Draw triangles with transform applied
             for (auto& tri : objs[i].triangles)
             {
@@ -314,12 +346,32 @@ SpaceGameApp::Run()
                 glm::vec3 v1 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[1], 1.0f));
                 glm::vec3 v2 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[2], 1.0f));
 
-                Debug::DrawTriangle(v0, v1, v2, tri.color, Debug::DoubleSided, 1.0f);
+                // If this triangle was hit -> draw filled, else wireframe
+                if (tri.selected)
+                {
+                    Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::Filled, 2.0f); 
+                }
+                else
+                {
+                    Debug::DrawTriangle(v0, v1, v2, tri.color, Debug::WireFrame, 1.0f);
+                }
+              
                 tri.SetSelected(false);
 
-            }
-          
+            }  
         }
+        for (int i = 0; i < objs2.size(); i++)
+        {
+
+           
+           
+           //drawOBJ
+            objs2[i].drawObject();
+            objs2[i].SetOBjectRotation(randomAxis, angle);
+
+            
+        }
+
 
         int hitIndex = -1;
        float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
@@ -348,6 +400,7 @@ SpaceGameApp::Run()
        if (hitIndex != -1)
        {
            objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
+          
            Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
        }
        if (mouse->released[mouse->LeftButton])

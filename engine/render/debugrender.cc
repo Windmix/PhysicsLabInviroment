@@ -381,6 +381,10 @@ void RenderBox(RenderCommand* command)
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)(36 * sizeof(GLuint)));
 		glPolygonMode(GL_FRONT, GL_FILL);
 	}
+	if ((cmd->rendermode & Debug::Filled) == RenderMode::Filled)
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
 	else
 	{
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
