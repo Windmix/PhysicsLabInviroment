@@ -153,6 +153,7 @@ SpaceGameApp::Run()
 
     //Create obj physics
     std::vector<Object> objs;
+
     //create obj2 model
     std::vector<Object> objs2;
     for (int i = 0; i < 3; i++)
@@ -165,7 +166,7 @@ SpaceGameApp::Run()
 
         Object obj;
        
-        std::string filePath = "assets/space/spaceship_physics.glb";
+        std::string filePath = "assets/space/Cube.glb";
         obj.createObject(filePath);
 
         fx::gltf::Document doc;
@@ -187,19 +188,20 @@ SpaceGameApp::Run()
         }
         obj.SetOBjectPosition(newPos);
         obj.UpdateAndDrawAABBObject();
+
+        obj.calculateCenterOfMass();
+        obj.calculateInertiaTensor();
         objs.push_back(obj);
 
        
-        Object obj2;
-
-        std::string filePath2 = "assets/space/spaceship.glb";
+     /*   Object obj2;
+        std::string filePath2 = "assets/space/Cube.glb";
         obj2.createObject(filePath2);
-
-        obj2.SetScale(glm::vec3(3.0f));
-
+        obj2.SetScale(glm::vec3(1.0f));
         obj2.SetOBjectPosition(newPos);
-       
-        objs2.push_back(obj2);
+        obj2.calculateCenterOfMass();
+        obj2.calculateInertiaTensor();
+        objs2.push_back(obj2);*/
 
 
 
@@ -220,13 +222,13 @@ SpaceGameApp::Run()
     // game loop
   
     while (this->window->IsOpen())
-	{
+    {
         auto timeStart = std::chrono::steady_clock::now();
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-        
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+
         this->window->Update();
 
         // Handle cursor show/hide on right mouse button
@@ -247,166 +249,134 @@ SpaceGameApp::Run()
         //Free flight cam
         ffCam.Update(dt);
 
-        //text
-        /*auto text = std::to_string(Quads[0].GetRotation().x) + " , " + std::to_string(Quads[0].GetRotation().y) + " , " + std::to_string(Quads[0].GetRotation().z);
-        Debug::DrawDebugText(text.c_str(), glm::vec3(0), {1,0,0,1});*/
-
-        //render draw
-        //for (int i  = 0; i < Quads.size(); i++)
-        //{
-        //    
-        //       
-        //    for (auto& tri : Quads[i].triangles)
-        //    {
-        //        Debug::DrawTriangle(tri.verticies[0], tri.verticies[1], tri.verticies[2], tri.color, Debug::DoubleSided, 1.0f);
-        //        tri.SetSelected(false);
-        //    }
-        //        
-
-        //   Quads[i].SetRotation(glm::vec3(1.0f, 1.0f, 0.0f), angle = dt);
-        //    Quads[i].UpdateAndDrawAABB();
-        //    glm::vec3 start = Quads[i].plane.getOrigin();
-        //    glm::vec3 end = start + Quads[i].plane.GetNormal();
-        //    Debug::DrawLine(start, end, 1.0f, glm::vec4(1, 0, 0, 1), glm::vec4(1, 0, 0, 1));
-        //     
-        //}
-
-      
-        //int hitIndex = -1;
-        //float closestDistance = std::numeric_limits<float>::max();
-
-        ////closes one who get hit?
-        //for (int i = 0; i < Quads.size(); i++)
-        //{
-        //   
-        //    if (mouse->pressed[mouse->LeftButton])
-        //    {
-        //        ray = Physics::ScreenPointToRay(mouse->position, w, h);
-
-        //        drawRay = true;
-        //    }
-        //    
-        //    if (Physics::CheckRayHitAABB(Quads[i].aabb, ray, rayProperties))
-        //    {
-        //   
-        //        if (rayProperties.AABBintersection.length() < closestDistance) // distance from ray origin to intersection
-        //        {
-        //            closestDistance = rayProperties.AABBintersection.length();
-        //            hitIndex = i;
-        //        }
-        //    }
-        //}
-        //// After loop, only one hit
-        //if (hitIndex != -1)
-        //{
-        //    Quads[hitIndex].CheckRayHit(Quads[hitIndex], ray, rayProperties);
-        //    Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
-        //}
-        //if (mouse->released[mouse->LeftButton])
-        //{
-
-        //    drawRay = false;
-
-        //}
-      
-        //render
-        angle += dt;  
+        angle += dt;
         timeSinceAxisChange += dt;
-        
+
         // random -1..1 axis
         static glm::vec3 targetAxis;
 
-        float blendSpeed =  2.0 * dt; // adjust speed (0.5–2.0 for slower/faster blend)
-        if (timeSinceAxisChange >= 2.0f)
-        {
-            targetAxis += glm::normalize(glm::vec3(
-                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-                static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
-            timeSinceAxisChange = 0.0f;
-        }
-      
-        randomAxis = glm::normalize(glm::mix(randomAxis, targetAxis, blendSpeed));
+        //float blendSpeed =  2.0 * dt; // adjust speed (0.5–2.0 for slower/faster blend)
+        //if (timeSinceAxisChange >= 2.0f)
+        //{
+        //    targetAxis += glm::normalize(glm::vec3(
+        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
+        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
+        //    timeSinceAxisChange = 0.0f;
+        //}
+
+        //randomAxis = glm::normalize(glm::mix(randomAxis, targetAxis, blendSpeed));
 
         for (int i = 0; i < objs.size(); i++)
         {
-           
-            // Update AABB and render
-            objs[i].UpdateAndDrawAABBObject();
-            objs[i].drawObject();
-            objs[i].SetOBjectRotation(randomAxis, angle);
-            
-            
 
-            // Draw triangles with transform applied
+            // Physics first
+            objs[i].Integrate(dt);
+
+            // Update AABB after moving
+            objs[i].UpdateAndDrawAABBObject();
+
+            // Draw the object at new position
+            objs[i].drawObject();
+
+            // Draw triangles with applied transform
             for (auto& tri : objs[i].triangles)
             {
-               
                 glm::vec3 v0 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[0], 1.0f));
                 glm::vec3 v1 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[1], 1.0f));
                 glm::vec3 v2 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[2], 1.0f));
 
-                // If this triangle was hit -> draw filled, else wireframe
                 if (tri.selected)
-                {
-                    Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::Filled, 2.0f); 
-                }
+                    Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::Filled, 2.0f);
                 else
-                {
                     Debug::DrawTriangle(v0, v1, v2, tri.color, Debug::WireFrame, 1.0f);
-                }
-              
+
                 tri.SetSelected(false);
-
-            }  
+            }
         }
-        for (int i = 0; i < objs2.size(); i++)
-        {
+        //for (int i = 0; i < objs2.size(); i++)
+        //{
 
-           
-           
-           //drawOBJ
-            objs2[i].drawObject();
-            objs2[i].SetOBjectRotation(randomAxis, angle);
 
-            
-        }
+        //    objs2[i].Integrate(dt);
+        //    //Draw model
+        //    objs2[i].drawObject();
+
+
+        //}
 
 
         int hitIndex = -1;
-       float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
+        float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
 
-       //closes one who get hit?
-       for (int i = 0; i < objs.size(); i++)
-       {
-           if (mouse->held[mouse->LeftButton])
-           {
-               ray = Physics::ScreenPointToRay(mouse->position, w, h);
-               drawRay = true;
-           }
-          
-           if (Physics::CheckRayHitAABB(objs[i].aabb, ray, rayProperties))
-           {
-               // distance from ray origin to intersection
-               if (rayProperties.AABBintersection.length() < closestDistance) 
-               {
-                   closestDistance = rayProperties.AABBintersection.length();
-                   hitIndex = i;
-               }
-           }
-       }
-       
-       // After loop, only one hit
-       if (hitIndex != -1)
-       {
-           objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
-          
-           Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
-       }
-       if (mouse->released[mouse->LeftButton])
-       {
-           drawRay = false;
-       }
+        
+        if (mouse->pressed[mouse->LeftButton])
+        {
+            ray = Physics::ScreenPointToRay(mouse->position, w, h);
+            drawRay = true;
+        }
+        if (mouse->released[mouse->LeftButton])
+        {
+            drawRay = false;
+        }
+
+        for (int i = 0; i < objs.size(); i++)
+        {
+            //closes ABB who get hit?
+            if (Physics::CheckRayHitAABB(objs[i].aabb, ray, rayProperties))
+            {
+                // distance from ray origin to intersection
+                if (rayProperties.AABBintersection.length() < closestDistance)
+                {
+                    closestDistance = rayProperties.AABBintersection.length();
+                    hitIndex = i;
+                }
+            }
+        }
+
+        // After loop, only one hit
+
+        if (hitIndex != -1 && drawRay != false)
+        {
+            objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
+            Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+
+            //drawing the direction later
+            glm::vec3 forceDirection = glm::normalize(ray.GetDirection());
+            objs[hitIndex].forceDirection = forceDirection;
+            objs[hitIndex].storedHitindex = hitIndex;
+           // objs2[hitIndex].forceDirection = forceDirection;
+           
+
+ 
+            objs[hitIndex].ApplyForce(forceDirection * objs[hitIndex].forceMagnitude, rayProperties.intersection);
+           // objs2[hitIndex].ApplyForce(forceDirection * objs2[hitIndex].forceMagnitude, rayProperties.intersection);
+            
+
+        }
+        
+
+        for (int i = 0; i < objs.size(); i++)
+        {
+            if (objs[i].storedHitindex != -1)
+            {
+                
+               // objs2[i].drawForceDirection(objs2[i].position, (objs2[i].position + objs2[i].forceDirection * glm::length(objs2[i].accumulatedForce * 0.1f)));
+
+                //debug draw How much force applied on
+                glm::vec3 currentForce = objs[i].forceDirection * objs[i].forceMagnitude;
+
+              /*  std::ostringstream ss;
+                ss << std::fixed << std::setprecision(2);
+                ss << "Current applied Force: " << glm::length(currentForce) << " N \n"
+                   << "Accumulated Force: " << glm::length(objs[i].accumulatedForce) << " N";
+
+                Debug::DrawDebugText(ss.str().c_str(),objs[i].position,glm::vec4(1, 1, 1, 1)
+                );*/
+            }
+            objs[i].calculateCenterOfMass();
+            objs[i].drawAnglularAxis(objs[i].angularVelocity);
+        }
         
         //draw Lazer
         if (drawRay)
@@ -459,9 +429,22 @@ SpaceGameApp::RenderUI()
         int lightSphereId = Core::CVarReadInt(r_draw_light_sphere_id);
         if (ImGui::InputInt("LightSphereId", (int*)&lightSphereId))
             Core::CVarWriteInt(r_draw_light_sphere_id, lightSphereId);
-        
-        ImGui::End();
 
+
+        //freeze pos
+        Core::CVar* r_freeze_pos = Core::CVarGet("r_freeze_pos");
+        int freezePos = Core::CVarReadInt(r_freeze_pos);
+        if (ImGui::Checkbox("freezePos", (bool*)&freezePos))
+        {
+            Core::CVarWriteInt(r_freeze_pos, freezePos);
+
+        }
+
+     
+
+
+
+        ImGui::End();
         Debug::DispatchDebugTextDrawing();
 	}
 }

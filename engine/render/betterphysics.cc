@@ -95,7 +95,7 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
     }
 
     if (hit)
-    {
+    {/*
         printf("AABB HIT!\n");
         printf("Intersection point: (%.3f, %.3f, %.3f)\n",
             rayproperties.AABBintersection.x,
@@ -104,7 +104,7 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
         printf("Face normal end: (%.3f, %.3f, %.3f)\n",
             rayproperties.AABBnormalEnd.x,
             rayproperties.AABBnormalEnd.y,
-            rayproperties.AABBnormalEnd.z);
+            rayproperties.AABBnormalEnd.z);*/
     }
 
 

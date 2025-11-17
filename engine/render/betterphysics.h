@@ -9,9 +9,9 @@ namespace Physics
     struct RayProperties
     {
         //AABB normals
-        glm::vec3 AABBintersection, AABBnormalEnd;
+        glm::vec3 AABBintersection = glm::vec3(0), AABBnormalEnd = glm::vec3(0);
         //original Normals
-        glm::vec3 intersection, normalEnd;
+        glm::vec3 intersection = glm::vec3(0), normalEnd  = glm::vec3(0);
     };
 
     struct ColliderMesh
