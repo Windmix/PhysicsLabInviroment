@@ -67,6 +67,7 @@ public:
 	//pos and rot
 	void SetOBjectRotation(glm::vec3 direction, float angle);
 	void SetOBjectPosition(glm::vec3 newPosition);
+	void ApplyGravityForce(glm::vec3 force);
 
 	// Physics
 	void ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint); // apply force

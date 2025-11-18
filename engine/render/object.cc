@@ -30,6 +30,7 @@ Object::Object()
     inertiaTensorInv = glm::mat3(0);
 
 
+
 }
 
 Object::~Object()
@@ -212,7 +213,13 @@ void Object::SetOBjectPosition(glm::vec3 newPosition) // sends a copy of positio
     transform = t * r * s;
 }
 
+void Object::ApplyGravityForce(glm::vec3 gravitationalVector)
+{
 
+
+    accumulatedForce += gravitationalVector * mass * 9.82f;
+    this->force = gravitationalVector * mass * 9.82f;
+}
 
 void Object::ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint)
 {
@@ -342,6 +349,7 @@ void Object::calculateCenterOfMass()
     }
 
     centerOfMass /= totalMass;
+
 }
 
 void Object::calculateInertiaTensor()

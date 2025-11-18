@@ -156,7 +156,7 @@ SpaceGameApp::Run()
 
     //create obj2 model
     std::vector<Object> objs2;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 2; i++)
     {
         glm::vec4 color(
             static_cast<float>(rand()) / RAND_MAX,
@@ -177,7 +177,9 @@ SpaceGameApp::Run()
 
         Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
         obj.SetScale(glm::vec3(1.0f));
-        auto newPos = glm::vec3(0.0f + i * 10.0f, 0.0f + i * 10.0f, 0.0f);
+
+        glm::vec3 startPos = glm::vec3(1 + i * 10.0f, 1 + i * 10.0f, 1 + i * 10.0f);
+  
     
         for (auto& tri : obj.triangles)
         {
@@ -186,7 +188,8 @@ SpaceGameApp::Run()
             tri.selectedColor = glm::vec4(1, 1, 0, 1);
 
         }
-        obj.SetOBjectPosition(newPos);
+    
+        obj.SetOBjectPosition(startPos);
         obj.UpdateAndDrawAABBObject();
 
         obj.calculateCenterOfMass();
@@ -211,16 +214,17 @@ SpaceGameApp::Run()
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
 
-    float timeSinceAxisChange = 0.0f;
 
-    //RandomAxis
-    glm::vec3 randomAxis;
-    randomAxis = glm::normalize(glm::vec3(
-        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
     // game loop
-  
+
+
+    auto CvarGravity = Core::CVarCreate(Core::CVarType::CVar_Int, "r_apply_gravity", "0");
+
+
+    auto Cvar_gravity_direction_x = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_x", "0");
+    auto Cvar_gravity_direction_y = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_y", "0");
+    auto Cvar_gravity_direction_z = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_z", "0");
+
     while (this->window->IsOpen())
     {
         auto timeStart = std::chrono::steady_clock::now();
@@ -249,29 +253,37 @@ SpaceGameApp::Run()
         //Free flight cam
         ffCam.Update(dt);
 
-        angle += dt;
-        timeSinceAxisChange += dt;
+   
+     
 
         // random -1..1 axis
         static glm::vec3 targetAxis;
 
-        //float blendSpeed =  2.0 * dt; // adjust speed (0.5–2.0 for slower/faster blend)
-        //if (timeSinceAxisChange >= 2.0f)
-        //{
-        //    targetAxis += glm::normalize(glm::vec3(
-        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f,
-        //        static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f));
-        //    timeSinceAxisChange = 0.0f;
-        //}
 
-        //randomAxis = glm::normalize(glm::mix(randomAxis, targetAxis, blendSpeed));
 
-        for (int i = 0; i < objs.size(); i++)
+        int applyGravity = Core::CVarReadInt(CvarGravity);
+        float gravity_direction_x = Core::CVarReadFloat(Cvar_gravity_direction_x);
+        float gravity_direction_y = Core::CVarReadFloat(Cvar_gravity_direction_y);
+        float gravity_direction_z = Core::CVarReadFloat(Cvar_gravity_direction_z);
+        glm::vec3 gravityDirection(gravity_direction_x, gravity_direction_y, gravity_direction_z);
+
+        for (int i = 0; i < objs.size(); i++) // renderloop
         {
 
             // Physics first
+            objs[i].calculateCenterOfMass();
+            objs[i].drawAnglularAxis(objs[i].angularVelocity);
+            if (applyGravity == 1)
+            {
+                objs[i].ApplyGravityForce(gravityDirection);
+            }
+            float size = 5.0f;
+            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(size, 0, 0), objs[i].centerOfMass + glm::vec3(size, 0, 0), 2.0f, glm::vec4(1, 0, 0, 1), glm::vec4(1, 0, 0, 1));
+            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(0, size, 0), objs[i].centerOfMass + glm::vec3(0, size, 0), 2.0f, glm::vec4(0, 1, 0, 1), glm::vec4(1, 0, 0, 1));
+            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(0, 0, size), objs[i].centerOfMass + glm::vec3(0, 0, size), 2.0f, glm::vec4(0, 0, 1, 1), glm::vec4(1, 0, 0, 1));
             objs[i].Integrate(dt);
+
+
 
             // Update AABB after moving
             objs[i].UpdateAndDrawAABBObject();
@@ -335,7 +347,6 @@ SpaceGameApp::Run()
         }
 
         // After loop, only one hit
-
         if (hitIndex != -1 && drawRay != false)
         {
             objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
@@ -355,28 +366,28 @@ SpaceGameApp::Run()
 
         }
         
+     
 
-        for (int i = 0; i < objs.size(); i++)
-        {
-            if (objs[i].storedHitindex != -1)
-            {
-                
-               // objs2[i].drawForceDirection(objs2[i].position, (objs2[i].position + objs2[i].forceDirection * glm::length(objs2[i].accumulatedForce * 0.1f)));
 
-                //debug draw How much force applied on
-                glm::vec3 currentForce = objs[i].forceDirection * objs[i].forceMagnitude;
+        //for (int i = 0; i < objs.size(); i++)
+        //{
+        //    if (objs[i].storedHitindex != -1)
+        //    {
+        //        
+        //       // objs2[i].drawForceDirection(objs2[i].position, (objs2[i].position + objs2[i].forceDirection * glm::length(objs2[i].accumulatedForce * 0.1f)));
 
-              /*  std::ostringstream ss;
-                ss << std::fixed << std::setprecision(2);
-                ss << "Current applied Force: " << glm::length(currentForce) << " N \n"
-                   << "Accumulated Force: " << glm::length(objs[i].accumulatedForce) << " N";
+        //        //debug draw How much force applied on
+        //        glm::vec3 currentForce = objs[i].forceDirection * objs[i].forceMagnitude;
 
-                Debug::DrawDebugText(ss.str().c_str(),objs[i].position,glm::vec4(1, 1, 1, 1)
-                );*/
-            }
-            objs[i].calculateCenterOfMass();
-            objs[i].drawAnglularAxis(objs[i].angularVelocity);
-        }
+        //      /*  std::ostringstream ss;
+        //        ss << std::fixed << std::setprecision(2);
+        //        ss << "Current applied Force: " << glm::length(currentForce) << " N \n"
+        //           << "Accumulated Force: " << glm::length(objs[i].accumulatedForce) << " N";
+
+        //        Debug::DrawDebugText(ss.str().c_str(),objs[i].position,glm::vec4(1, 1, 1, 1)
+        //        );*/
+        //    }
+        //}
         
         //draw Lazer
         if (drawRay)
@@ -440,7 +451,26 @@ SpaceGameApp::RenderUI()
 
         }
 
-     
+        //gravity
+            Core::CVar * r_apply_gravity = Core::CVarGet("r_apply_gravity");
+        int applyGravity = Core::CVarReadInt(r_apply_gravity);
+        if (ImGui::Checkbox("Apply Gravity", (bool*)&applyGravity))
+        {
+
+            Core::CVarWriteInt(r_apply_gravity, applyGravity);
+        }
+
+        // --- Gravity direction ---
+        float gravityDir[3];
+        gravityDir[0] = Core::CVarReadFloat(Core::CVarGet("r_gravity_direction_x"));
+        gravityDir[1] = Core::CVarReadFloat(Core::CVarGet("r_gravity_direction_y"));
+        gravityDir[2] = Core::CVarReadFloat(Core::CVarGet("r_gravity_direction_z"));
+        if (ImGui::InputFloat3("Gravity Direction", gravityDir))
+        {
+            Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_x"), gravityDir[0]);
+            Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_y"), gravityDir[1]);
+            Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_z"), gravityDir[2]);
+        }
 
 
 
