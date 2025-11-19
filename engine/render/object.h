@@ -5,8 +5,6 @@
 #include "mathplane.h"
 
 
-
-
 class Object
 {
 public:
@@ -45,6 +43,9 @@ public:
 	float forceMagnitude;
 	int storedHitindex;
 
+	//G from the gravity formula
+	float G = 0.001f;
+
 	// Inertia
 	float mass;
 	float totalMass;
@@ -59,7 +60,7 @@ public:
 
 	//render
 	void createObject(std::string filePath);
-	void UpdateAndDrawAABBObject();
+	void UpdateAABBObject();
 	void drawObject() const;
 	void DrawAABBOnObject();
 	bool CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties);
@@ -68,6 +69,7 @@ public:
 	void SetOBjectRotation(glm::vec3 direction, float angle);
 	void SetOBjectPosition(glm::vec3 newPosition);
 	void ApplyGravityForce(glm::vec3 force);
+	void ApplyGravityFrom(Object& other);
 
 	// Physics
 	void ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint); // apply force
@@ -84,6 +86,27 @@ public:
 private:
 
 };
+class ObjectGlobalData
+{
+	// Private constructor - prevents external instantiation
+	ObjectGlobalData();
+
+
+
+
+	static ObjectGlobalData* instance;  // Static instance pointer
+public:
+
+
+	static ObjectGlobalData& GetInstance();
+	void ClearInstance();
+
+	std::vector<Object> phyiscsObjects;
+	std::vector<Object> Objects;
+
+	int ammountOfObjects;
+};
+
 
 	
 	

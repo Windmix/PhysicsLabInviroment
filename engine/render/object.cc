@@ -20,7 +20,7 @@ Object::Object()
     angularVelocity = glm::vec3(0.0f);
     accumulatedTorque = glm::vec3(0.0f);
     orientation = glm::quat(1, 0, 0, 0);
-    forceMagnitude = 10.0f;
+    forceMagnitude = 20.0f;
     storedHitindex = -1;
     mass = 20.0f;
     totalMass = 0.0f;
@@ -165,7 +165,7 @@ bool Object::CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& ra
     return hitAny;
 }
 
-void Object::UpdateAndDrawAABBObject()
+void Object::UpdateAABBObject()
 {
    // Reset AABB
     aabb.min = glm::vec3(std::numeric_limits<float>::max());
@@ -175,14 +175,12 @@ void Object::UpdateAndDrawAABBObject()
     for (auto& tri : triangles)
     {
        
-        aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[0], 1.0f)));
+        aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[0], 1.0f)  ));
         aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[1], 1.0f)));
         aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[2], 1.0f)));
     }
 
-
-
-    DrawAABBOnObject();
+    
 }
 void Object::SetOBjectRotation(glm::vec3 direction, float angle)
 {
@@ -219,6 +217,29 @@ void Object::ApplyGravityForce(glm::vec3 gravitationalVector)
 
     accumulatedForce += gravitationalVector * mass * 9.82f;
     this->force = gravitationalVector * mass * 9.82f;
+}
+
+void Object::ApplyGravityFrom(Object& other)
+{
+    if (&other == this) return; // do not apply gravity to itself
+
+    // F(i,j) = G * (M(i) * M(j)) / r^2 * r(vector)
+    glm::vec3 dir = other.position - this->position;
+    float distSq = glm::dot(dir, dir);
+
+    // avoid infinite force when objects overlap
+    float minDistSq = 0.01f;
+    distSq = glm::max(distSq, minDistSq);
+    float dist = sqrt(distSq);
+
+    //r(vector) direction
+    glm::vec3 dirNorm = dir / dist;
+
+    //G * (M(i) * M(j)) / r^2
+    float forceMag = G * (this->mass * other.mass) / distSq;
+    glm::vec3 force = dirNorm * forceMag;
+
+    this->force += force;
 }
 
 void Object::ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint)
@@ -401,4 +422,24 @@ void Object::SetScale(glm::vec3 _scale)
 }
 
 
+ObjectGlobalData* ObjectGlobalData::instance = nullptr;
 
+ObjectGlobalData::ObjectGlobalData()
+{
+    ammountOfObjects = 0;
+}
+
+ObjectGlobalData& ObjectGlobalData::GetInstance()
+{
+    if (!instance)
+    {
+        instance = new ObjectGlobalData();
+    }
+    return *instance;
+}
+
+void ObjectGlobalData::ClearInstance()
+{
+    delete instance;
+    instance = nullptr;
+}

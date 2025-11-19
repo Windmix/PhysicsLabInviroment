@@ -6,6 +6,7 @@
 #include "gltf.h"
 namespace Physics
 {
+
     struct RayProperties
     {
         //AABB normals
@@ -55,3 +56,4 @@ namespace Physics
     
 
 };
+

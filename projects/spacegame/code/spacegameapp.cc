@@ -125,6 +125,8 @@ SpaceGameApp::Run()
     glm::vec3 v2(1.0f, 0.0f, 1.0f);
     glm::vec3 v3(-1.0f, 0.0f, 1.0f);
     std::vector<Quad> Quads;
+
+
     for (int i = 0; i < 10; i++)
     {
 
@@ -137,10 +139,7 @@ SpaceGameApp::Run()
         );
 
       
-        auto quad = Quad(v0, v1, v2, v3, color);
-       
-       
-      
+        auto quad = Quad(v0, v1, v2, v3, color);    
        auto newPos = glm::vec3(0.0f + i * 10.0f, 0.0f + i * 10.0f, 0.0f);
        quad.SetPosition(newPos);
        quad.UpdateAndDrawAABB();
@@ -151,36 +150,28 @@ SpaceGameApp::Run()
        
     }
 
-    //Create obj physics
-    std::vector<Object> objs;
 
-    //create obj2 model
-    std::vector<Object> objs2;
-    for (int i = 0; i < 2; i++)
+    ObjectGlobalData& globalData = ObjectGlobalData::GetInstance();
+    globalData.ammountOfObjects = 10;
+
+    for (int i = 0; i < globalData.ammountOfObjects; i++)
     {
-        glm::vec4 color(
-            static_cast<float>(rand()) / RAND_MAX,
-            static_cast<float>(rand()) / RAND_MAX,
-            static_cast<float>(rand()) / RAND_MAX,
-            1.0f);
-
-        Object obj;
-       
+        Object obj; 
         std::string filePath = "assets/space/Cube.glb";
         obj.createObject(filePath);
 
         fx::gltf::Document doc;
+
         if (filePath.substr(filePath.find_last_of(".") + 1) == "glb")
             doc = fx::gltf::LoadFromBinary(filePath);
         else
             doc = fx::gltf::LoadFromText(filePath);
 
         Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
+
         obj.SetScale(glm::vec3(1.0f));
 
         glm::vec3 startPos = glm::vec3(1 + i * 10.0f, 1 + i * 10.0f, 1 + i * 10.0f);
-  
-    
         for (auto& tri : obj.triangles)
         {
             tri.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
@@ -188,13 +179,17 @@ SpaceGameApp::Run()
             tri.selectedColor = glm::vec4(1, 1, 0, 1);
 
         }
+        if (i == 0)
+        {
+            obj.mass = 100000.0f;
+        }
     
-        obj.SetOBjectPosition(startPos);
-        obj.UpdateAndDrawAABBObject();
+        obj.SetOBjectPosition(startPos); 
+        obj.UpdateAABBObject();
 
         obj.calculateCenterOfMass();
         obj.calculateInertiaTensor();
-        objs.push_back(obj);
+        globalData.phyiscsObjects.push_back(obj);
 
        
      /*   Object obj2;
@@ -204,7 +199,7 @@ SpaceGameApp::Run()
         obj2.SetOBjectPosition(newPos);
         obj2.calculateCenterOfMass();
         obj2.calculateInertiaTensor();
-        objs2.push_back(obj2);*/
+        globalData.phyiscsObjects2.push_back(obj2);*/
 
 
 
@@ -214,18 +209,15 @@ SpaceGameApp::Run()
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
 
-
-    // game loop
-
-
+    //cvar create
     auto CvarGravity = Core::CVarCreate(Core::CVarType::CVar_Int, "r_apply_gravity", "0");
-
-
     auto Cvar_gravity_direction_x = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_x", "0");
     auto Cvar_gravity_direction_y = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_y", "0");
     auto Cvar_gravity_direction_z = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_z", "0");
+    auto CvarDrawABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB_id", "0");
 
-    while (this->window->IsOpen())
+
+    while (this->window->IsOpen())// game loop
     {
         auto timeStart = std::chrono::steady_clock::now();
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -250,16 +242,12 @@ SpaceGameApp::Run()
         {
             ShaderResource::ReloadShaders();
         }
+
         //Free flight cam
         ffCam.Update(dt);
 
-   
-     
-
         // random -1..1 axis
         static glm::vec3 targetAxis;
-
-
 
         int applyGravity = Core::CVarReadInt(CvarGravity);
         float gravity_direction_x = Core::CVarReadFloat(Cvar_gravity_direction_x);
@@ -267,56 +255,71 @@ SpaceGameApp::Run()
         float gravity_direction_z = Core::CVarReadFloat(Cvar_gravity_direction_z);
         glm::vec3 gravityDirection(gravity_direction_x, gravity_direction_y, gravity_direction_z);
 
-        for (int i = 0; i < objs.size(); i++) // renderloop
+        int IdDrawABB = Core::CVarReadInt(CvarDrawABB);
+
+
+        for (int i = 0; i < globalData.phyiscsObjects.size(); i++) // renderloop
         {
 
             // Physics first
-            objs[i].calculateCenterOfMass();
-            objs[i].drawAnglularAxis(objs[i].angularVelocity);
+            globalData.phyiscsObjects[i].calculateCenterOfMass();
+            globalData.phyiscsObjects[i].drawAnglularAxis(globalData.phyiscsObjects[i].angularVelocity);
             if (applyGravity == 1)
             {
-                objs[i].ApplyGravityForce(gravityDirection);
+                globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
             }
-            float size = 5.0f;
-            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(size, 0, 0), objs[i].centerOfMass + glm::vec3(size, 0, 0), 2.0f, glm::vec4(1, 0, 0, 1), glm::vec4(1, 0, 0, 1));
-            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(0, size, 0), objs[i].centerOfMass + glm::vec3(0, size, 0), 2.0f, glm::vec4(0, 1, 0, 1), glm::vec4(1, 0, 0, 1));
-            Debug::DrawLine(objs[i].centerOfMass - glm::vec3(0, 0, size), objs[i].centerOfMass + glm::vec3(0, 0, size), 2.0f, glm::vec4(0, 0, 1, 1), glm::vec4(1, 0, 0, 1));
-            objs[i].Integrate(dt);
+            globalData.phyiscsObjects[i].Integrate(dt);
 
 
 
             // Update AABB after moving
-            objs[i].UpdateAndDrawAABBObject();
+
+            globalData.phyiscsObjects[i].UpdateAABBObject();
+            globalData.phyiscsObjects[IdDrawABB].DrawAABBOnObject();
+            
 
             // Draw the object at new position
-            objs[i].drawObject();
+            globalData.phyiscsObjects[i].drawObject();
 
             // Draw triangles with applied transform
-            for (auto& tri : objs[i].triangles)
+            for (auto& tri : globalData.phyiscsObjects[i].triangles)
             {
-                glm::vec3 v0 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[0], 1.0f));
-                glm::vec3 v1 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[1], 1.0f));
-                glm::vec3 v2 = glm::vec3(objs[i].transform * glm::vec4(tri.verticies[2], 1.0f));
+                glm::vec3 v0 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[0], 1.0f));
+                glm::vec3 v1 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[1], 1.0f));
+                glm::vec3 v2 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[2], 1.0f));
 
+                //if triangle is hit by ray, it will recolor it
                 if (tri.selected)
-                    Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::Filled, 2.0f);
+                    Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::AlwaysOnTop, 2.0f);
                 else
                     Debug::DrawTriangle(v0, v1, v2, tri.color, Debug::WireFrame, 1.0f);
 
                 tri.SetSelected(false);
             }
         }
-        //for (int i = 0; i < objs2.size(); i++)
+        //for (int i = 0; i < globalData.phyiscsObjects2.size(); i++)
         //{
 
 
-        //    objs2[i].Integrate(dt);
+        //    globalData.phyiscsObjects2[i].Integrate(dt);
         //    //Draw model
-        //    objs2[i].drawObject();
+        //    globalData.phyiscsObjects2[i].drawObject();
 
 
         //}
 
+        //Newton’s Law of Gravity, using first cube as a planet with big mass.
+        for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
+        {
+            for (int j = 0; j < globalData.phyiscsObjects.size(); j++)
+            {
+                if (i == j) continue;
+                globalData.phyiscsObjects[i].ApplyGravityFrom(globalData.phyiscsObjects[j]);
+                globalData.phyiscsObjects[j].Integrate(dt);
+
+            }
+            
+        }
 
         int hitIndex = -1;
         float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
@@ -332,10 +335,10 @@ SpaceGameApp::Run()
             drawRay = false;
         }
 
-        for (int i = 0; i < objs.size(); i++)
+        for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
         {
             //closes ABB who get hit?
-            if (Physics::CheckRayHitAABB(objs[i].aabb, ray, rayProperties))
+            if (Physics::CheckRayHitAABB(globalData.phyiscsObjects[i].aabb, ray, rayProperties))
             {
                 // distance from ray origin to intersection
                 if (rayProperties.AABBintersection.length() < closestDistance)
@@ -349,42 +352,34 @@ SpaceGameApp::Run()
         // After loop, only one hit
         if (hitIndex != -1 && drawRay != false)
         {
-            objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
+            globalData.phyiscsObjects[hitIndex].CheckRayHit(globalData.phyiscsObjects[hitIndex], ray, rayProperties);
+
+            //draw normal
             Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
 
             //drawing the direction later
             glm::vec3 forceDirection = glm::normalize(ray.GetDirection());
-            objs[hitIndex].forceDirection = forceDirection;
-            objs[hitIndex].storedHitindex = hitIndex;
-           // objs2[hitIndex].forceDirection = forceDirection;
-           
+            globalData.phyiscsObjects[hitIndex].forceDirection = forceDirection;
+            globalData.phyiscsObjects[hitIndex].storedHitindex = hitIndex;
+            globalData.phyiscsObjects[hitIndex].ApplyForce(forceDirection * globalData.phyiscsObjects[hitIndex].forceMagnitude, rayProperties.intersection);
 
- 
-            objs[hitIndex].ApplyForce(forceDirection * objs[hitIndex].forceMagnitude, rayProperties.intersection);
-           // objs2[hitIndex].ApplyForce(forceDirection * objs2[hitIndex].forceMagnitude, rayProperties.intersection);
-            
-
+            // globalData.phyiscsObjects2[hitIndex].forceDirection = forceDirection;
+           // globalData.phyiscsObjects2[hitIndex].ApplyForce(forceDirection * globalData.phyiscsObjects2[hitIndex].forceMagnitude, rayProperties.intersection);
         }
-        
-     
 
-
-        //for (int i = 0; i < objs.size(); i++)
+        //for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
         //{
-        //    if (objs[i].storedHitindex != -1)
+        //    if (globalData.phyiscsObjects[i].storedHitindex != -1)
         //    {
         //        
-        //       // objs2[i].drawForceDirection(objs2[i].position, (objs2[i].position + objs2[i].forceDirection * glm::length(objs2[i].accumulatedForce * 0.1f)));
-
+        //       // globalData.phyiscsObjects2[i].drawForceDirection(globalData.phyiscsObjects2[i].position, (globalData.phyiscsObjects2[i].position + globalData.phyiscsObjects2[i].forceDirection * glm::length(globalData.phyiscsObjects2[i].accumulatedForce * 0.1f)));
         //        //debug draw How much force applied on
-        //        glm::vec3 currentForce = objs[i].forceDirection * objs[i].forceMagnitude;
-
+        //        glm::vec3 currentForce = globalData.phyiscsObjects[i].forceDirection * globalData.phyiscsObjects[i].forceMagnitude;
         //      /*  std::ostringstream ss;
         //        ss << std::fixed << std::setprecision(2);
         //        ss << "Current applied Force: " << glm::length(currentForce) << " N \n"
-        //           << "Accumulated Force: " << glm::length(objs[i].accumulatedForce) << " N";
-
-        //        Debug::DrawDebugText(ss.str().c_str(),objs[i].position,glm::vec4(1, 1, 1, 1)
+        //           << "Accumulated Force: " << glm::length(globalData.phyiscsObjects[i].accumulatedForce) << " N";
+        //        Debug::DrawDebugText(ss.str().c_str(),globalData.phyiscsObjects[i].position,glm::vec4(1, 1, 1, 1)
         //        );*/
         //    }
         //}
@@ -419,6 +414,8 @@ SpaceGameApp::Run()
 void
 SpaceGameApp::Exit()
 {
+    ObjectGlobalData& globalData = ObjectGlobalData::GetInstance();
+    globalData.ClearInstance();
     this->window->Close();
 }
 
@@ -430,6 +427,9 @@ SpaceGameApp::RenderUI()
 {
 	if (this->window->IsOpen())
 	{
+        ObjectGlobalData& globalData = ObjectGlobalData::GetInstance();
+      
+
         ImGui::Begin("Debug");
         Core::CVar* r_draw_light_spheres = Core::CVarGet("r_draw_light_spheres");
         int drawLightSpheres = Core::CVarReadInt(r_draw_light_spheres);
@@ -471,7 +471,18 @@ SpaceGameApp::RenderUI()
             Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_y"), gravityDir[1]);
             Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_z"), gravityDir[2]);
         }
+        Core::CVar* r_draw_AABB_id = Core::CVarGet("r_draw_AABB_id");
+        int drawAABBId = Core::CVarReadInt(r_draw_AABB_id);
+        if (ImGui::InputInt("drawAABBId", (int*)&drawAABBId))
+        {
+            Core::CVarWriteInt(r_draw_AABB_id, drawAABBId);
+            if (drawAABBId > globalData.ammountOfObjects-1)
+            {
 
+                Core::CVarWriteInt(r_draw_AABB_id, 0);
+            }
+        }
+          
 
 
         ImGui::End();
