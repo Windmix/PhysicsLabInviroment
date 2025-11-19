@@ -287,6 +287,7 @@ SpaceGameApp::Run()
 
 
 
+
             // Update AABB after moving
 
             globalData.phyiscsObjects[i].UpdateAABBObject();
