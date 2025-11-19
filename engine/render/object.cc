@@ -259,13 +259,16 @@ void Object::ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint)
 void Object::Integrate(float dt)
 {
     Core::CVar* r_freeze_pos = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_pos", "0");
-    int freezeBool = Core::CVarReadInt(r_freeze_pos);
+    int freezePosBool = Core::CVarReadInt(r_freeze_pos);
+
+    Core::CVar* r_freeze_rot = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_rot", "0");
+    int freezeRotBool = Core::CVarReadInt(r_freeze_rot);
    
 
 
     // --- LINEAR MOTION ---
     // Semi-implicit Euler
-    if (freezeBool == 0)
+    if (freezePosBool == 0)
     {
         acceleration = this->force / mass; // F = kg/s^2 --> a = F/kg
         velocity += acceleration * dt;
@@ -275,21 +278,25 @@ void Object::Integrate(float dt)
   
    
  
+    if (freezeRotBool == 0)
+    {
 
-    // --- ANGULAR MOTION ---
-    glm::vec3 angularAcceleration = inertiaTensorInv * torque;
-    angularVelocity += angularAcceleration * dt;
+        // --- ANGULAR MOTION ---
+        glm::vec3 angularAcceleration = inertiaTensorInv * torque;
+        angularVelocity += angularAcceleration * dt;
 
-    glm::quat deltaRot = glm::quat(0.0f, angularVelocity * dt);
-    orientation += 0.5f * deltaRot * orientation;
-    orientation = glm::normalize(orientation);
+        glm::quat deltaRot = glm::quat(0.0f, angularVelocity * dt);
+        orientation += 0.5f * deltaRot * orientation;
+        orientation = glm::normalize(orientation);
 
-    // Update transform for rendering
-    glm::mat4 t = glm::translate(glm::mat4(1.0f), position);
-    glm::mat4 r = glm::mat4_cast(orientation);
-    glm::mat4 s = glm::scale(glm::mat4(1.0f), scale);
-    transform = t * r * s;
+        // Update transform for rendering
+        glm::mat4 t = glm::translate(glm::mat4(1.0f), position);
+        glm::mat4 r = glm::mat4_cast(orientation);
+        glm::mat4 s = glm::scale(glm::mat4(1.0f), scale);
+        transform = t * r * s;
 
+    }
+   
     //clear force and torque
     force = glm::vec3(0);
     torque = glm::vec3(0);

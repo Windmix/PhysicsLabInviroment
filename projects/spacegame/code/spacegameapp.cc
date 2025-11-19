@@ -157,7 +157,7 @@ SpaceGameApp::Run()
     for (int i = 0; i < globalData.ammountOfObjects; i++)
     {
         Object obj; 
-        std::string filePath = "assets/space/Cube.glb";
+        std::string filePath = "assets/space/spaceship_physics.glb";
         obj.createObject(filePath);
 
         fx::gltf::Document doc;
@@ -181,7 +181,7 @@ SpaceGameApp::Run()
         }
         if (i == 0)
         {
-            obj.mass = 100000.0f;
+            obj.mass = 20.0f;
         }
     
         obj.SetOBjectPosition(startPos); 
@@ -216,6 +216,12 @@ SpaceGameApp::Run()
     auto Cvar_gravity_direction_z = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_z", "0");
     auto CvarDrawABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB_id", "0");
 
+
+    Core::CVar* r_freeze_rot = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_rot", "0");
+    int freezeRotBool = Core::CVarReadInt(r_freeze_rot);
+
+    Core::CVar* r_freeze_pos = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_pos", "0");
+    int freezePosBool = Core::CVarReadInt(r_freeze_pos);
 
     while (this->window->IsOpen())// game loop
     {
@@ -257,18 +263,27 @@ SpaceGameApp::Run()
 
         int IdDrawABB = Core::CVarReadInt(CvarDrawABB);
 
+        
 
         for (int i = 0; i < globalData.phyiscsObjects.size(); i++) // renderloop
         {
 
             // Physics first
             globalData.phyiscsObjects[i].calculateCenterOfMass();
-            globalData.phyiscsObjects[i].drawAnglularAxis(globalData.phyiscsObjects[i].angularVelocity);
+
+            if(freezeRotBool == 0)
+                globalData.phyiscsObjects[i].drawAnglularAxis(globalData.phyiscsObjects[i].angularVelocity);
+
             if (applyGravity == 1)
             {
                 globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
             }
-            globalData.phyiscsObjects[i].Integrate(dt);
+
+            if (freezeRotBool == 0 || freezeRotBool == 0)
+            {
+                globalData.phyiscsObjects[i].Integrate(dt);
+            }
+           
 
 
 
@@ -348,20 +363,32 @@ SpaceGameApp::Run()
                 }
             }
         }
-
+      
         // After loop, only one hit
         if (hitIndex != -1 && drawRay != false)
         {
-            globalData.phyiscsObjects[hitIndex].CheckRayHit(globalData.phyiscsObjects[hitIndex], ray, rayProperties);
+          
 
             //draw normal
-            Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+            if (globalData.phyiscsObjects[hitIndex].CheckRayHit(globalData.phyiscsObjects[hitIndex], ray, rayProperties))
+            {
+                Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
 
-            //drawing the direction later
-            glm::vec3 forceDirection = glm::normalize(ray.GetDirection());
-            globalData.phyiscsObjects[hitIndex].forceDirection = forceDirection;
-            globalData.phyiscsObjects[hitIndex].storedHitindex = hitIndex;
-            globalData.phyiscsObjects[hitIndex].ApplyForce(forceDirection * globalData.phyiscsObjects[hitIndex].forceMagnitude, rayProperties.intersection);
+              
+
+                //drawing the direction later
+                glm::vec3 forceDirection = glm::normalize(ray.GetDirection());
+                globalData.phyiscsObjects[hitIndex].forceDirection = forceDirection;
+                globalData.phyiscsObjects[hitIndex].storedHitindex = hitIndex;
+                globalData.phyiscsObjects[hitIndex].ApplyForce(forceDirection* globalData.phyiscsObjects[hitIndex].forceMagnitude, rayProperties.intersection);
+
+                Debug::DrawLine(rayProperties.intersection, globalData.phyiscsObjects[hitIndex].centerOfMass, 3.0f, glm::vec4(1, 0, 1, 1), glm::vec4(1, 1, 1, 1));
+
+               
+              
+            }
+           
+
 
             // globalData.phyiscsObjects2[hitIndex].forceDirection = forceDirection;
            // globalData.phyiscsObjects2[hitIndex].ApplyForce(forceDirection * globalData.phyiscsObjects2[hitIndex].forceMagnitude, rayProperties.intersection);
@@ -450,6 +477,14 @@ SpaceGameApp::RenderUI()
             Core::CVarWriteInt(r_freeze_pos, freezePos);
 
         }
+        Core::CVar* r_freeze_rot = Core::CVarGet("r_freeze_rot");
+        int freezeRot = Core::CVarReadInt(r_freeze_rot);
+        if (ImGui::Checkbox("freezeRot", (bool*)&freezeRot))
+        {
+            Core::CVarWriteInt(r_freeze_rot, freezeRot);
+
+        }
+      
 
         //gravity
             Core::CVar * r_apply_gravity = Core::CVarGet("r_apply_gravity");
