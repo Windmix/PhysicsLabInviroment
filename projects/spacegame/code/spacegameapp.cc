@@ -334,7 +334,7 @@ SpaceGameApp::Run()
             // Update AABB and render
             objs[i].UpdateAndDrawAABBObject();
             objs[i].drawObject();
-            objs[i].SetOBjectRotation(randomAxis, angle);
+            //objs[i].SetOBjectRotation(randomAxis, angle);
             
             
 
@@ -367,7 +367,7 @@ SpaceGameApp::Run()
            
            //drawOBJ
             objs2[i].drawObject();
-            objs2[i].SetOBjectRotation(randomAxis, angle);
+            //objs2[i].SetOBjectRotation(randomAxis, angle);
 
             
         }
@@ -399,9 +399,8 @@ SpaceGameApp::Run()
        // After loop, only one hit
        if (hitIndex != -1)
        {
-           objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties);
-          
-           Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+           if(objs[hitIndex].CheckRayHit(objs[hitIndex], ray, rayProperties))
+               Debug::DrawLine(rayProperties.intersection, rayProperties.normalEnd, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
        }
        if (mouse->released[mouse->LeftButton])
        {
