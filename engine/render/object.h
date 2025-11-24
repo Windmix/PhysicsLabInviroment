@@ -17,7 +17,6 @@ public:
 	glm::vec3 rotation;
 	glm::mat4 transform;
 	glm::vec3 scale;
-
 	MathPlane plane;
 
 	// Store triangles similar to Quad
@@ -31,6 +30,7 @@ public:
 	void drawObject() const;
 	void DrawAABBOnObject();
 	bool CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties);
+	bool IsPointInsideMesh(const glm::vec3& point);
 
 	//pos and rot
 	void SetOBjectRotation(glm::vec3 direction, float angle);

@@ -12,6 +12,8 @@ namespace Physics
         glm::vec3 AABBintersection, AABBnormalEnd;
         //original Normals
         glm::vec3 intersection, normalEnd;
+        //is inside
+        bool isInsideObject = false;
     };
 
     struct ColliderMesh

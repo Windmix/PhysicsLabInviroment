@@ -128,9 +128,17 @@ bool Object::CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& ra
             if (glm::dot(ray.GetDirection(), normal) > 0.0f)
                 normal = -normal;
 
+            rayproperties.isInsideObject = myObj.IsPointInsideMesh(ray.GetOrigin());
+            if (rayproperties.isInsideObject)
+            {
+                rayproperties.normalEnd = intersection - normal;
+            }
+            else
+            {
+                rayproperties.normalEnd = intersection + normal;
+            }
             // Store intersection info for later use
             rayproperties.intersection = intersection;
-            rayproperties.normalEnd = intersection + normal;
 
             hitAny = true;
         }
@@ -144,6 +152,45 @@ bool Object::CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& ra
     }
 
     return hitAny;
+}
+
+bool Object::IsPointInsideMesh(const glm::vec3& point)
+{
+    glm::vec3 dir = glm::vec3(1.0f, 0.0f, 0.0f); // arbitrary direction
+    MathRay testRay(point, dir);
+
+    int hits = 0;
+
+    for (auto& tri : triangles)
+    {
+        // Transform triangle vertices to world space
+        glm::vec3 v0 = glm::vec3(transform * glm::vec4(tri.verticies[0], 1.0f));
+        glm::vec3 v1 = glm::vec3(transform * glm::vec4(tri.verticies[1], 1.0f));
+        glm::vec3 v2 = glm::vec3(transform * glm::vec4(tri.verticies[2], 1.0f));
+
+        // --- Same Möller–Trumbore intersection logic ---
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 h = glm::cross(testRay.GetDirection(), edge2);
+        float a = glm::dot(edge1, h);
+
+        if (fabs(a) < 1e-6f) continue; // parallel
+
+        float f = 1.0f / a;
+        glm::vec3 s = point - v0;
+        float u = f * glm::dot(s, h);
+        if (u < 0.0f || u > 1.0f) continue;
+
+        glm::vec3 q = glm::cross(s, edge1);
+        float v = f * glm::dot(testRay.GetDirection(), q);
+        if (v < 0.0f || u + v > 1.0f) continue;
+
+        float t = f * glm::dot(edge2, q);
+        if (t > 1e-6f) // ignore self-hit
+            hits++;
+    }
+
+    return (hits % 2 == 1); // odd = inside
 }
 
 void Object::UpdateAndDrawAABBObject()
