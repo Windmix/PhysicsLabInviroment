@@ -208,21 +208,22 @@ SpaceGameApp::Run()
 
     std::clock_t c_start = std::clock();
     double dt = 0.01667f;
-
+    //------------------------------------------------------------------------------------------------------------
     //cvar create
+    //physics
     auto CvarGravity = Core::CVarCreate(Core::CVarType::CVar_Int, "r_apply_gravity", "0");
     auto Cvar_gravity_direction_x = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_x", "0");
     auto Cvar_gravity_direction_y = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_y", "0");
     auto Cvar_gravity_direction_z = Core::CVarCreate(Core::CVarType::CVar_Float, "r_gravity_direction_z", "0");
-    auto CvarDrawABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB_id", "0");
-
-
     Core::CVar* r_freeze_rot = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_rot", "0");
     int freezeRotBool = Core::CVarReadInt(r_freeze_rot);
-
     Core::CVar* r_freeze_pos = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_pos", "0");
     int freezePosBool = Core::CVarReadInt(r_freeze_pos);
 
+    //Draws
+    auto CvarDrawAABBid = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB_id", "0");
+    auto CvarDrawAABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB", "0");
+    //------------------------------------------------------------------------------------------------------------
     while (this->window->IsOpen())// game loop
     {
         auto timeStart = std::chrono::steady_clock::now();
@@ -255,13 +256,18 @@ SpaceGameApp::Run()
         // random -1..1 axis
         static glm::vec3 targetAxis;
 
+        //------------------------------------------------------------------------------------------------------------
+        //cvar create
+        //physics
         int applyGravity = Core::CVarReadInt(CvarGravity);
         float gravity_direction_x = Core::CVarReadFloat(Cvar_gravity_direction_x);
         float gravity_direction_y = Core::CVarReadFloat(Cvar_gravity_direction_y);
         float gravity_direction_z = Core::CVarReadFloat(Cvar_gravity_direction_z);
         glm::vec3 gravityDirection(gravity_direction_x, gravity_direction_y, gravity_direction_z);
 
-        int IdDrawABB = Core::CVarReadInt(CvarDrawABB);
+        int IdDrawABB = Core::CVarReadInt(CvarDrawAABBid);
+        bool cvarDrawAABB = Core::CVarReadInt(CvarDrawAABB);
+        //-------------------------------------------------------------------------------------------------------------
 
         
 
@@ -278,7 +284,7 @@ SpaceGameApp::Run()
             {
                 globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
             }
-
+            
             if (freezeRotBool == 0 || freezeRotBool == 0)
             {
                 globalData.phyiscsObjects[i].Integrate(dt);
@@ -289,10 +295,13 @@ SpaceGameApp::Run()
 
 
             // Update AABB after moving
-
             globalData.phyiscsObjects[i].UpdateAABBObject();
-            globalData.phyiscsObjects[IdDrawABB].DrawAABBOnObject();
-            
+
+            // Draw AABB
+            if (cvarDrawAABB)
+            {
+                globalData.phyiscsObjects[IdDrawABB].DrawAABBOnObject();
+            }
 
             // Draw the object at new position
             globalData.phyiscsObjects[i].drawObject();
@@ -488,7 +497,7 @@ SpaceGameApp::RenderUI()
       
 
         //gravity
-            Core::CVar * r_apply_gravity = Core::CVarGet("r_apply_gravity");
+        Core::CVar * r_apply_gravity = Core::CVarGet("r_apply_gravity");
         int applyGravity = Core::CVarReadInt(r_apply_gravity);
         if (ImGui::Checkbox("Apply Gravity", (bool*)&applyGravity))
         {
@@ -507,16 +516,34 @@ SpaceGameApp::RenderUI()
             Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_y"), gravityDir[1]);
             Core::CVarWriteFloat(Core::CVarGet("r_gravity_direction_z"), gravityDir[2]);
         }
+
+        Core::CVar* r_draw_AABB = Core::CVarGet("r_draw_AABB");
+        int DrawAABB = Core::CVarReadInt(r_draw_AABB);
+        if (ImGui::Checkbox("allow draw AABB", (bool*)&DrawAABB))
+        {
+            Core::CVarWriteInt(r_draw_AABB, DrawAABB);
+
+        }
+
         Core::CVar* r_draw_AABB_id = Core::CVarGet("r_draw_AABB_id");
         int drawAABBId = Core::CVarReadInt(r_draw_AABB_id);
         if (ImGui::InputInt("drawAABBId", (int*)&drawAABBId))
         {
+
+            //draw AABB
             Core::CVarWriteInt(r_draw_AABB_id, drawAABBId);
-            if (drawAABBId > globalData.ammountOfObjects-1)
+            if (drawAABBId > (globalData.ammountOfObjects - 1))
             {
 
                 Core::CVarWriteInt(r_draw_AABB_id, 0);
             }
+            else if (drawAABBId < 0)
+            {
+                Core::CVarWriteInt(r_draw_AABB_id, (globalData.ammountOfObjects - 1));
+            }
+          
+         
+           
         }
           
 
