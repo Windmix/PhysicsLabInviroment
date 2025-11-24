@@ -63,7 +63,10 @@ public:
 	void UpdateAABBObject();
 	void drawObject() const;
 	void DrawAABBOnObject();
+
+	//ray checks
 	bool CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties);
+	bool IsPointInsideMesh(const glm::vec3& point);
 
 	//pos and rot
 	void SetOBjectRotation(glm::vec3 direction, float angle);

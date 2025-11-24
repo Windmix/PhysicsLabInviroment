@@ -55,7 +55,7 @@ SpaceGameApp::Open()
 {
 	App::Open();
 	this->window = new Display::Window;
-    this->window->SetSize(2560, 1440);
+    this->window->SetSize(1920, 1080);
 
     if (this->window->Open())
 	{
@@ -359,8 +359,12 @@ SpaceGameApp::Run()
                 // distance from ray origin to intersection
                 if (rayProperties.AABBintersection.length() < closestDistance)
                 {
-                    closestDistance = rayProperties.AABBintersection.length();
-                    hitIndex = i;
+                    //need this check for if its inside aabb and want to intersect another object
+                    if (globalData.phyiscsObjects[i].CheckRayHit(globalData.phyiscsObjects[i], ray, rayProperties))
+                    {
+                        closestDistance = rayProperties.AABBintersection.length();
+                        hitIndex = i;
+                    }
                 }
             }
         }
