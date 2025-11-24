@@ -152,7 +152,7 @@ SpaceGameApp::Run()
 
 
     ObjectGlobalData& globalData = ObjectGlobalData::GetInstance();
-    globalData.ammountOfObjects = 10;
+    globalData.ammountOfObjects = 4;
 
     for (int i = 0; i < globalData.ammountOfObjects; i++)
     {
@@ -395,7 +395,8 @@ SpaceGameApp::Run()
                 globalData.phyiscsObjects[hitIndex].forceDirection = forceDirection;
                 globalData.phyiscsObjects[hitIndex].storedHitindex = hitIndex;
                 globalData.phyiscsObjects[hitIndex].ApplyForce(forceDirection* globalData.phyiscsObjects[hitIndex].forceMagnitude, rayProperties.intersection);
-
+                
+                //center of mass drawing
                 Debug::DrawLine(rayProperties.intersection, globalData.phyiscsObjects[hitIndex].centerOfMass, 3.0f, glm::vec4(1, 0, 1, 1), glm::vec4(1, 1, 1, 1));
 
                

@@ -156,6 +156,7 @@ bool Object::CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& ra
             {
                 rayproperties.normalEnd = intersection + normal;
             }
+            rayproperties.intersection = intersection;
 
             hitAny = true;
         }
