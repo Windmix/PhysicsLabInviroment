@@ -289,13 +289,32 @@ SpaceGameApp::Run()
             {
                 globalData.phyiscsObjects[i].Integrate(dt);
             }
-           
-
-
-
-
             // Update AABB after moving
             globalData.phyiscsObjects[i].UpdateAABBObject();
+
+
+            //Collect all AABBs for plane sweeP
+            std::vector<Physics::AABB> sweepAABBEntries;
+
+            for (auto& obj : globalData.phyiscsObjects)
+            {
+
+                sweepAABBEntries.push_back(obj.aabb);
+            }
+            //contains all pairs of AABBs that overlap in 3D space
+            //Broad-phase collision detection
+            std::vector<std::pair<Physics::AABB, Physics::AABB>> candidates;
+            candidates = Physics::PlaneSweepOverlaps(sweepAABBEntries);
+
+            //Narrow-phase collision detection and response
+            for (auto& pair : candidates)
+            {
+                if (Physics::CheckAABBCollision(pair.first, pair.second))
+                {
+                    // TODO: resolve collision
+                    // e.g., apply impulses, move objects apart
+                }
+            }
 
             // Draw AABB
             if (cvarDrawAABB)
@@ -535,7 +554,7 @@ SpaceGameApp::RenderUI()
         if (ImGui::InputInt("drawAABBId", (int*)&drawAABBId))
         {
 
-            //draw AABB
+            //draw AABBgiv
             Core::CVarWriteInt(r_draw_AABB_id, drawAABBId);
             if (drawAABBId > (globalData.ammountOfObjects - 1))
             {

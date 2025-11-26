@@ -4,6 +4,9 @@
 #include "renderdevice.h"
 #include "model.h"
 #include "gltf.h"
+
+
+
 namespace Physics
 {
 
@@ -37,7 +40,7 @@ namespace Physics
     class AABB
     {
     public:
-        Render::ModelId model;
+     
         glm::vec3 min;
         glm::vec3 max;
 
@@ -51,12 +54,25 @@ namespace Physics
  
 
     };
- void LoadFromIndexBuffer(fx::gltf::Document  doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb);
+
+
+
+    void LoadFromIndexBuffer(fx::gltf::Document  doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb);
 
     MathRay ScreenPointToRay(glm::vec2& mousePos, float ScreenWidth, float ScreenHeight);
+
+    bool CheckAABBCollision(const AABB& a, const AABB& b);
+
+    std::vector<std::pair<Physics::AABB, Physics::AABB>> PlaneSweepOverlaps(std::vector<AABB>& aabbs);
     bool CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproperties);
-
-    
-
 };
+
+namespace SortingAlgorithm
+{
+    // Merge function
+    void Merge(std::vector<Physics::AABB>& arr, int left, int mid, int right);
+
+    // Merge sort recursive function
+    void MergeSort(std::vector<Physics::AABB>& arr, int left, int right);
+}
 
