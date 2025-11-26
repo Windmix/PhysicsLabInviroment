@@ -25,18 +25,15 @@ struct FFCam
     glm::vec3 linearVelocity = glm::vec3(0);
 
 
-    const float normalSpeed = 1.0f;
-    const float boostSpeed = normalSpeed * 2.0f;
+    const float normalSpeed = 3.0f;
+    const float boostSpeed = normalSpeed * 6.0f;
     const float accelerationFactor = 50.0f;
     const float camOffsetY = 0.0f;
     const float cameraSmoothFactor = 50.0f;
 
-    float currentSpeedFB = 0.0f;
-    float currentSpeedLR = 0.0f;
-    float currentSpeedTD = 0.0f;
+    float yaw = 0.0f;
+    float pitch = 0.0f;
 
-
-    float rotationZ = 0;
     float rotXSmooth = 0;
     float rotYSmooth = 0;
     float rotZSmooth = 0;
