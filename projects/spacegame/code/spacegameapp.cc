@@ -377,6 +377,8 @@ SpaceGameApp::Run()
         if (mouse->released[mouse->LeftButton])
         {
             drawRay = false;
+
+            //reset the ray's values
             ray = MathRay();
         }
 
