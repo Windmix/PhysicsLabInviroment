@@ -377,6 +377,7 @@ SpaceGameApp::Run()
         if (mouse->released[mouse->LeftButton])
         {
             drawRay = false;
+            ray = MathRay();
         }
 
         for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
