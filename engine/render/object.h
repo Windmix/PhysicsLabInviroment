@@ -20,7 +20,7 @@ public:
 	// Store triangles
 	std::vector<Physics::ColliderMesh::Triangle> triangles;
 
-	// Physics
+	// Physics rigidbody 
 	// 
 	// --- Linear ---
 	glm::vec3 velocity;
@@ -63,6 +63,7 @@ public:
 	void UpdateAABBObject();
 	void drawObject() const;
 	void DrawAABBOnObject();
+	std::vector<glm::vec3> GetWorldVertices() const;
 
 	//ray checks
 	bool CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties);
@@ -71,10 +72,11 @@ public:
 	//pos and rot
 	void SetOBjectRotation(glm::vec3 direction, float angle);
 	void SetOBjectPosition(glm::vec3 newPosition);
-	void ApplyGravityForce(glm::vec3 force);
-	void ApplyGravityFrom(Object& other);
+	
 
 	// Physics
+	void ApplyGravityForce(glm::vec3 force);
+	void ApplyGravityFrom(Object& other);
 	void ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint); // apply force
 	void Integrate(float dt);
 	void drawForceDirection(glm::vec3 intersect, glm::vec3 dir);

@@ -181,7 +181,7 @@ SpaceGameApp::Run()
         }
         if (i == 0)
         {
-            obj.mass = 20.0f;
+            obj.mass = 50000.0f;
         }
     
         obj.SetOBjectPosition(startPos); 
@@ -293,26 +293,48 @@ SpaceGameApp::Run()
             globalData.phyiscsObjects[i].UpdateAABBObject();
 
 
-            //Collect all AABBs for plane sweeP
+           
+            //also collect all objects
             std::vector<Physics::AABB> sweepAABBEntries;
+
 
             for (auto& obj : globalData.phyiscsObjects)
             {
-
                 sweepAABBEntries.push_back(obj.aabb);
             }
             //contains all pairs of AABBs that overlap in 3D space
-            //Broad-phase collision detection
+            //Broad-phase collision detection 
             std::vector<std::pair<Physics::AABB, Physics::AABB>> candidates;
             candidates = Physics::PlaneSweepOverlaps(sweepAABBEntries);
 
             //Narrow-phase collision detection and response
             for (auto& pair : candidates)
             {
+                Object* objA = pair.first.owner;
+                Object* objB = pair.second.owner;
+
+                // Broad-phase
                 if (Physics::CheckAABBCollision(pair.first, pair.second))
                 {
-                    // TODO: resolve collision
-                    // e.g., apply impulses, move objects apart
+                    // Narrow-phase
+                    const std::vector<glm::vec3>& vertsA = objA->GetWorldVertices();
+                    const std::vector<glm::vec3>& vertsB = objB->GetWorldVertices();
+
+
+                    if (Physics::GJK_Intersect(vertsA, vertsB))
+                    {
+                        // Collision detected
+                        // TODO: call EPA to get penetration vector
+                        // For now, apply simple separation impulse
+
+                     /*   glm::vec3 collisionDir = glm::normalize(objB->centerOfMass - objA->centerOfMass);
+                        float impulseStrength = 30.0f;
+
+                        objA->ApplyForce(-collisionDir * impulseStrength, objA->centerOfMass);
+                        objB->ApplyForce(collisionDir * impulseStrength, objB->centerOfMass);*/
+                    }
+
+                
                 }
             }
 
@@ -369,7 +391,7 @@ SpaceGameApp::Run()
         float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
 
         
-        if (mouse->pressed[mouse->LeftButton])
+        if (mouse->held[mouse->LeftButton])
         {
             ray = Physics::ScreenPointToRay(mouse->position, w, h);
             drawRay = true;
@@ -455,7 +477,7 @@ SpaceGameApp::Run()
         }
         else
         {
-            Debug::DrawLine(SavedOrigin, SavedEnd, 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+           // Debug::DrawLine(SavedOrigin, SavedEnd, 1.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
         }
       
         // Execute the entire rendering pipeline

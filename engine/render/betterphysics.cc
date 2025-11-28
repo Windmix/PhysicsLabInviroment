@@ -58,6 +58,196 @@ bool Physics::CheckAABBCollision(const AABB& a, const AABB& b)
     return overlapX && overlapY && overlapZ;
 }
 
+bool Physics::GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B)
+{
+    //an initial direction
+    glm::vec3 dir(1, 0, 0);
+
+    //Build first simplex point
+    Simplex simplex;
+    simplex.pts.push_back(SupportMinkowski(A, B, dir));
+
+    // New direction = toward origin
+    dir = -simplex.pts[0];
+
+    // 3. Iterate
+    for (int iter = 0; iter < 50; iter++)
+    {
+        // New support point
+        glm::vec3 newPt = SupportMinkowski(A, B, dir);
+
+        // If new point does not pass origin in direction → no collision
+        if (glm::dot(newPt, dir) < 0)
+            return false;
+
+        // Add point to simplex
+        simplex.push_front(newPt);
+        glm::mat4 transform = glm::mat4(0.5);
+        transform[3] = glm::vec4(newPt, 1);
+        Debug::DrawBox(transform, glm::vec4(1, 1, 0, 1));
+        // Draw current simplex
+        simplex.DrawSimplex(simplex);
+        //Draw search direction
+        DrawGJKDirection(dir);
+
+        // Process simplex; dir will be updated
+        if (DoSimplex(simplex, dir))
+        {
+            return true; // Origin inside → collision
+        }
+    }
+
+    return false; // rare fallback
+}
+
+glm::vec3 Physics::Support(const std::vector<glm::vec3>& verts, const glm::vec3& dir)
+{
+    float best = -FLT_MAX;
+    glm::vec3 bestV = glm::vec3(0);
+
+    for (auto& v : verts)
+    {
+        float d = glm::dot(v, dir);
+        if (d > best) 
+        {
+            best = d;
+            bestV = v;
+        }
+    }
+    return bestV;
+}
+
+glm::vec3 Physics::SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir)
+{
+    return Support(A, dir) - Support(B, -dir);
+}
+
+bool Physics::DoSimplex(Simplex& simplex, glm::vec3& dir)
+{
+    // Number of points in simplex
+    switch (simplex.pts.size())
+    {
+        // --------------------------
+        //       LINE (2 points)
+        // --------------------------
+    case 2:
+    {
+        glm::vec3 a = simplex.pts[0];
+        glm::vec3 b = simplex.pts[1];
+
+        glm::vec3 ab = b - a;
+        glm::vec3 ao = -a;
+
+        // If AB still points toward origin → keep both points
+        if (glm::dot(ab, ao) > 0)
+        {
+            // New direction is perpendicular to AB toward origin
+            dir = glm::cross(glm::cross(ab, ao), ab);
+        }
+        else
+        {
+            // Remove B, keep only A
+            simplex.pts = { a };
+            dir = ao;
+        }
+
+        return false;
+    }
+
+    // --------------------------
+    //     TRIANGLE (3 points)
+    // --------------------------
+    case 3:
+    {
+        glm::vec3 a = simplex.pts[0];
+        glm::vec3 b = simplex.pts[1];
+        glm::vec3 c = simplex.pts[2];
+
+        glm::vec3 ab = b - a;
+        glm::vec3 ac = c - a;
+        glm::vec3 ao = -a;
+
+        glm::vec3 abc = glm::cross(ab, ac);
+
+        // Check if origin is in region AB
+        if (glm::dot(glm::cross(abc, ac), ao) > 0)
+        {
+            simplex.pts = { a, c };
+            dir = glm::cross(glm::cross(ac, ao), ac);
+        }
+        // Check if origin is in region AC
+        else if (glm::dot(glm::cross(ab, abc), ao) > 0)
+        {
+            simplex.pts = { a, b };
+            dir = glm::cross(glm::cross(ab, ao), ab);
+        }
+        else
+        {
+            // Origin is either above or below triangle
+            if (glm::dot(abc, ao) > 0)
+            {
+                dir = abc;
+            }
+            else
+            {
+                // Flip winding to maintain correct orientation
+                std::swap(simplex.pts[1], simplex.pts[2]);
+                dir = -abc;
+            }
+        }
+        return false;
+    }
+
+    // --------------------------
+    //    TETRAHEDRON (4 points)
+    // --------------------------
+    case 4:
+    {
+        glm::vec3 a = simplex.pts[0];
+        glm::vec3 b = simplex.pts[1];
+        glm::vec3 c = simplex.pts[2];
+        glm::vec3 d = simplex.pts[3];
+
+        glm::vec3 ao = -a;
+
+        glm::vec3 ab = b - a;
+        glm::vec3 ac = c - a;
+        glm::vec3 ad = d - a;
+
+        glm::vec3 abc = glm::cross(ab, ac);
+        glm::vec3 acd = glm::cross(ac, ad);
+        glm::vec3 adb = glm::cross(ad, ab);
+
+        // Check each face if origin lies outside
+        if (glm::dot(abc, ao) > 0)
+        {
+            simplex.pts = { a, b, c };
+            dir = abc;
+            return false;
+        }
+
+        if (glm::dot(acd, ao) > 0)
+        {
+            simplex.pts = { a, c, d };
+            dir = acd;
+            return false;
+        }
+
+        if (glm::dot(adb, ao) > 0)
+        {
+            simplex.pts = { a, d, b };
+            dir = adb;
+            return false;
+        }
+
+        // Origin is inside the tetrahedron → COLLISION
+        return true;
+    }
+    }
+
+    return false;
+}
+
 std::vector<std::pair<Physics::AABB, Physics::AABB>> Physics::PlaneSweepOverlaps(std::vector<AABB>& aabbs)
 {
     std::vector<Physics::AABB> sortedAABBs = aabbs;
@@ -153,6 +343,10 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
 
 
     return hit;
+}
+void Physics::DrawGJKDirection(const glm::vec3& dir, const glm::vec3& origin, const glm::vec4& color)
+{
+    Debug::DrawLine(origin, origin + dir, 2.0f, color, color);
 }
 void Physics::LoadFromIndexBuffer(fx::gltf::Document doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb)
 {
@@ -284,5 +478,21 @@ void SortingAlgorithm::MergeSort(std::vector<Physics::AABB>& arr, int left, int 
         SortingAlgorithm::MergeSort(arr, left, mid);
         SortingAlgorithm::MergeSort(arr, mid + 1, right);
         SortingAlgorithm::Merge(arr, left, mid, right);
+    }
+}
+
+void Physics::Simplex::push_front(const glm::vec3& p)
+{
+    pts.insert(pts.begin(), p);
+}
+void Physics::Simplex::DrawSimplex(const Simplex& simplex, const glm::vec4& color)
+{
+    // Draw edges between all points in the simplex
+    for (int i = 0; i < simplex.pts.size(); i++)
+    {
+        for (int j = i + 1; j < simplex.pts.size(); j++)
+        {
+            Debug::DrawLine(simplex.pts[i], simplex.pts[j], 2.0f, color, color);
+        }
     }
 }

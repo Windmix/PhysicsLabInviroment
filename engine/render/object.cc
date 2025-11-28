@@ -83,6 +83,22 @@ void Object::DrawAABBOnObject()
     Debug::DrawLine(corners[2], corners[6], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
     Debug::DrawLine(corners[3], corners[7], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
 }
+std::vector<glm::vec3> Object::GetWorldVertices() const
+{
+    std::vector<glm::vec3> worldVerts;
+    worldVerts.reserve(triangles.size() * 3); // pre-allocate memory
+
+    for (const auto& tri : triangles)
+    {
+        worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[0], 1.0f)));
+        worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[1], 1.0f)));
+        worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[2], 1.0f)));
+    }
+
+    return worldVerts;
+}
+
+
 
 bool Object::CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties)
 {
@@ -225,7 +241,8 @@ void Object::UpdateAABBObject()
         aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[1], 1.0f)));
         aabb.Expand(glm::vec3(transform * glm::vec4(tri.verticies[2], 1.0f)));
     }
-
+    // save pointer to abb as this object
+    aabb.owner = this;
     
 }
 void Object::SetOBjectRotation(glm::vec3 direction, float angle)

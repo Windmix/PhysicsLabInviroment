@@ -5,11 +5,11 @@
 #include "model.h"
 #include "gltf.h"
 
-
+class Object; //forward declaration
 
 namespace Physics
 {
-
+    
     struct RayProperties
     {
         //AABB normals
@@ -44,6 +44,8 @@ namespace Physics
         glm::vec3 min;
         glm::vec3 max;
 
+        Object* owner = nullptr;
+
         AABB();
         void UpdateAndDrawAABB();
         void DrawAABB();
@@ -55,16 +57,31 @@ namespace Physics
 
     };
 
+    struct Simplex
+    {
+        std::vector<glm::vec3> pts;
+        void push_front(const glm::vec3& p);
+        void DrawSimplex(const Simplex& simplex, const glm::vec4& color = glm::vec4(1, 1, 0, 1));
+    };
 
-
+    //render
     void LoadFromIndexBuffer(fx::gltf::Document  doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb);
-
     MathRay ScreenPointToRay(glm::vec2& mousePos, float ScreenWidth, float ScreenHeight);
 
+    //physics
     bool CheckAABBCollision(const AABB& a, const AABB& b);
-
     std::vector<std::pair<Physics::AABB, Physics::AABB>> PlaneSweepOverlaps(std::vector<AABB>& aabbs);
     bool CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproperties);
+
+    //GJK
+    bool GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B);
+    glm::vec3 Support(const std::vector<glm::vec3>& verts, const glm::vec3& dir);
+    glm::vec3 SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir);
+    bool DoSimplex(Simplex& simplex, glm::vec3& dir);
+
+    //draw
+    void DrawGJKDirection(const glm::vec3& dir, const glm::vec3& origin = glm::vec3(0), const glm::vec4& color = glm::vec4(0, 1, 0, 1));
+
 };
 
 namespace SortingAlgorithm
