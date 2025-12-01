@@ -157,7 +157,7 @@ SpaceGameApp::Run()
     for (int i = 0; i < globalData.ammountOfObjects; i++)
     {
         Object obj; 
-        std::string filePath = "assets/space/spaceship_physics.glb";
+        std::string filePath = "assets/space/Lowpolysphere.glb";
         obj.createObject(filePath);
 
         fx::gltf::Document doc;
@@ -223,6 +223,8 @@ SpaceGameApp::Run()
     //Draws
     auto CvarDrawAABBid = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB_id", "0");
     auto CvarDrawAABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB", "0");
+
+
     //------------------------------------------------------------------------------------------------------------
     while (this->window->IsOpen())// game loop
     {
@@ -285,7 +287,7 @@ SpaceGameApp::Run()
                 globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
             }
             
-            if (freezeRotBool == 0 || freezeRotBool == 0)
+            if (freezePosBool == 0 || freezeRotBool == 0)
             {
                 globalData.phyiscsObjects[i].Integrate(dt);
             }
@@ -320,21 +322,68 @@ SpaceGameApp::Run()
                     const std::vector<glm::vec3>& vertsA = objA->GetWorldVertices();
                     const std::vector<glm::vec3>& vertsB = objB->GetWorldVertices();
 
+                    globalData.phyiscsObjects[i].aabb.ishit = true;
 
-                    if (Physics::GJK_Intersect(vertsA, vertsB))
+                    //collision chekc for object A
+                    Physics::ColliderMesh::Triangle* closestTri = nullptr;
+                    float minDist = FLT_MAX;
+
+                    // Loop through all triangles of objA
+                    for (auto& tri : objA->triangles)
                     {
-                        // Collision detected
-                        // TODO: call EPA to get penetration vector
-                        // For now, apply simple separation impulse
+                        // Use precomputed world-space verts
+                        glm::vec3 v0 = glm::vec3(objA->transform * glm::vec4(tri.verticies[0], 1.0f));
+                        glm::vec3 v1 = glm::vec3(objA->transform * glm::vec4(tri.verticies[1], 1.0f));
+                        glm::vec3 v2 = glm::vec3(objA->transform * glm::vec4(tri.verticies[2], 1.0f));
 
-                     /*   glm::vec3 collisionDir = glm::normalize(objB->centerOfMass - objA->centerOfMass);
-                        float impulseStrength = 30.0f;
+                        std::vector<glm::vec3> triVerts = { v0, v1, v2 };
+                        glm::vec3 center = (v0 + v1 + v2) / 3.0f;
 
-                        objA->ApplyForce(-collisionDir * impulseStrength, objA->centerOfMass);
-                        objB->ApplyForce(collisionDir * impulseStrength, objB->centerOfMass);*/
+                     
+                        glm::vec3 collisionPoint;
+                        // Run GJK to check for collision
+                        Physics::Simplex simplex;
+                        if (Physics::GJK_Intersect(triVerts, vertsB, simplex, collisionPoint))
+                        {
+                            // Collision detected, run EPA
+                            glm::vec3 normal;
+                            glm::vec3 contactPoint;
+                            float penetration;
+
+                            if (Physics::EPA(simplex.pts, vertsA, vertsB, normal, penetration, contactPoint))
+                            {
+                                // Now we know EPA succeeded, so we can use these values
+
+                                float dist = glm::length(center - contactPoint);
+                                if (dist < minDist)
+                                {
+                                    minDist = dist;
+                                    closestTri = &tri;
+                                }
+
+                                // Apply impulse along EPA normal at contact point
+                                float impulseStrength = 1000.0f;
+                                objA->ApplyForce(-normal * impulseStrength, contactPoint);
+                                objB->ApplyForce(normal * impulseStrength, contactPoint);
+
+                                // Draw contact point and normal
+                                Debug::DrawLine(contactPoint, contactPoint - normal, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+                            }
+                        }
+                            //Draw a small box at the collision point
+                            glm::mat4 boxTransform = glm::mat4(0.1f);
+                            boxTransform = glm::translate(boxTransform, collisionPoint);
+                            boxTransform = glm::scale(boxTransform, glm::vec3(0.2f)); // small cube
+                            Debug::DrawBox(boxTransform, glm::vec4(1, 0, 0, 1)); // red box
                     }
+                    if (closestTri) closestTri->SetSelected(true);
 
-                
+
+                       
+                }
+                else
+                {
+                    globalData.phyiscsObjects[i].aabb.ishit = false;
                 }
             }
 
@@ -375,6 +424,7 @@ SpaceGameApp::Run()
         //}
 
         //Newton’s Law of Gravity, using first cube as a planet with big mass.
+
         for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
         {
             for (int j = 0; j < globalData.phyiscsObjects.size(); j++)
@@ -384,8 +434,9 @@ SpaceGameApp::Run()
                 globalData.phyiscsObjects[j].Integrate(dt);
 
             }
-            
+
         }
+       
 
         int hitIndex = -1;
         float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible

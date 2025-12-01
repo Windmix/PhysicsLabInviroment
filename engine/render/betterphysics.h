@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "cameramanager.h"
 #include "mathray.h"
 #include "renderdevice.h"
@@ -44,7 +44,8 @@ namespace Physics
         glm::vec3 min;
         glm::vec3 max;
 
-        Object* owner = nullptr;
+        Object* owner;
+        bool ishit;
 
         AABB();
         void UpdateAndDrawAABB();
@@ -56,13 +57,36 @@ namespace Physics
  
 
     };
+    struct SupportPoint
+    {
+        glm::vec3 point;   // Minkowski difference
+        glm::vec3 pointA;  // vertex on A
+        glm::vec3 pointB;  // vertex on B
+    };
 
     struct Simplex
     {
-        std::vector<glm::vec3> pts;
-        void push_front(const glm::vec3& p);
+        std::vector<SupportPoint> pts;
+        void push_front(const SupportPoint& sp);
         void DrawSimplex(const Simplex& simplex, const glm::vec4& color = glm::vec4(1, 1, 0, 1));
     };
+
+    struct CollisionInfo
+    {
+        glm::vec3 normal;     // collision normal from A → B
+        float penetration;    // depth of penetration
+        glm::vec3 contactPoint; // approximate contact point
+    };
+
+    struct EPAFace
+    {
+        SupportPoint a, b, c;
+        glm::vec3 normal;
+        float distance;
+
+        EPAFace(const SupportPoint& pa, const SupportPoint& pb, const SupportPoint& pc);
+    };
+    
 
     //render
     void LoadFromIndexBuffer(fx::gltf::Document  doc, std::vector<Physics::ColliderMesh::Triangle>& refTriangles, Physics::AABB& aabb);
@@ -73,10 +97,13 @@ namespace Physics
     std::vector<std::pair<Physics::AABB, Physics::AABB>> PlaneSweepOverlaps(std::vector<AABB>& aabbs);
     bool CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproperties);
 
+    bool EPA(const std::vector<SupportPoint>& simplex, const std::vector<glm::vec3>& vertsA, const std::vector<glm::vec3>& vertsB,
+        glm::vec3& outNormal, float& outPenetration, glm::vec3& outPoint);
+
     //GJK
-    bool GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B);
+    bool GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, Simplex& simplex, glm::vec3& outCollisionPoint);
     glm::vec3 Support(const std::vector<glm::vec3>& verts, const glm::vec3& dir);
-    glm::vec3 SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir);
+    SupportPoint SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir);
     bool DoSimplex(Simplex& simplex, glm::vec3& dir);
 
     //draw
@@ -87,9 +114,11 @@ namespace Physics
 namespace SortingAlgorithm
 {
     // Merge function
-    void Merge(std::vector<Physics::AABB>& arr, int left, int mid, int right);
+    template<typename T>
+    void Merge(std::vector<T>& arr, int left, int mid, int right);
 
     // Merge sort recursive function
-    void MergeSort(std::vector<Physics::AABB>& arr, int left, int right);
+    template<typename T>
+    void MergeSort(std::vector<T>& arr, int left, int right);
 }
 

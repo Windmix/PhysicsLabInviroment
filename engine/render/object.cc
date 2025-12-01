@@ -68,21 +68,48 @@ void Object::DrawAABBOnObject()
     };
 
     // Draw edges (12 lines)
-    Debug::DrawLine(corners[0], corners[1], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[1], corners[2], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[2], corners[3], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[3], corners[0], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
+    if (aabb.ishit)
+    {
+        //make it green
+        glm::vec4 green = glm::vec4(0, 1, 0, 1);
 
-    Debug::DrawLine(corners[4], corners[5], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[5], corners[6], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[6], corners[7], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[7], corners[4], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
+        Debug::DrawLine(corners[0], corners[1], 3.0f, green, green);
+        Debug::DrawLine(corners[1], corners[2], 3.0f, green, green);
+        Debug::DrawLine(corners[2], corners[3], 3.0f, green, green);
+        Debug::DrawLine(corners[3], corners[0], 3.0f, green, green);
 
-    Debug::DrawLine(corners[0], corners[4], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[1], corners[5], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[2], corners[6], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
-    Debug::DrawLine(corners[3], corners[7], 3.0f, glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1));
+        Debug::DrawLine(corners[4], corners[5], 3.0f, green, green);
+        Debug::DrawLine(corners[5], corners[6], 3.0f, green, green);
+        Debug::DrawLine(corners[6], corners[7], 3.0f, green, green);
+        Debug::DrawLine(corners[7], corners[4], 3.0f, green, green);
+
+        Debug::DrawLine(corners[0], corners[4], 3.0f, green, green);
+        Debug::DrawLine(corners[1], corners[5], 3.0f, green, green);
+        Debug::DrawLine(corners[2], corners[6], 3.0f, green, green);
+        Debug::DrawLine(corners[3], corners[7], 3.0f, green, green);
+    }
+    else
+    {
+        glm::vec4 c1 = glm::vec4(0, 1, 1, 1); // cyan
+        glm::vec4 c2 = glm::vec4(1, 0, 1, 1); // magenta
+
+        Debug::DrawLine(corners[0], corners[1], 3.0f, c1, c2);
+        Debug::DrawLine(corners[1], corners[2], 3.0f, c1, c2);
+        Debug::DrawLine(corners[2], corners[3], 3.0f, c1, c2);
+        Debug::DrawLine(corners[3], corners[0], 3.0f, c1, c2);
+
+        Debug::DrawLine(corners[4], corners[5], 3.0f, c1, c2);
+        Debug::DrawLine(corners[5], corners[6], 3.0f, c1, c2);
+        Debug::DrawLine(corners[6], corners[7], 3.0f, c1, c2);
+        Debug::DrawLine(corners[7], corners[4], 3.0f, c1, c2);
+
+        Debug::DrawLine(corners[0], corners[4], 3.0f, c1, c2);
+        Debug::DrawLine(corners[1], corners[5], 3.0f, c1, c2);
+        Debug::DrawLine(corners[2], corners[6], 3.0f, c1, c2);
+        Debug::DrawLine(corners[3], corners[7], 3.0f, c1, c2);
+    }
 }
+ 
 std::vector<glm::vec3> Object::GetWorldVertices() const
 {
     std::vector<glm::vec3> worldVerts;

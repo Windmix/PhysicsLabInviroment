@@ -58,48 +58,43 @@ bool Physics::CheckAABBCollision(const AABB& a, const AABB& b)
     return overlapX && overlapY && overlapZ;
 }
 
-bool Physics::GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B)
+bool Physics::GJK_Intersect(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, Simplex& simplex, glm::vec3& outCollisionPoint)
 {
-    //an initial direction
     glm::vec3 dir(1, 0, 0);
 
-    //Build first simplex point
-    Simplex simplex;
-    simplex.pts.push_back(SupportMinkowski(A, B, dir));
 
-    // New direction = toward origin
-    dir = -simplex.pts[0];
+    simplex.push_front(SupportMinkowski(A, B, dir));
 
-    // 3. Iterate
+    dir = -simplex.pts[0].point;
+
     for (int iter = 0; iter < 50; iter++)
     {
-        // New support point
-        glm::vec3 newPt = SupportMinkowski(A, B, dir);
+        SupportPoint sp = SupportMinkowski(A, B, dir);
 
-        // If new point does not pass origin in direction → no collision
-        if (glm::dot(newPt, dir) < 0)
+        // If support point does not pass origin in search direction, no collision
+        if (glm::dot(sp.point, dir) < 0)
             return false;
 
-        // Add point to simplex
-        simplex.push_front(newPt);
-        glm::mat4 transform = glm::mat4(0.5);
-        transform[3] = glm::vec4(newPt, 1);
-        Debug::DrawBox(transform, glm::vec4(1, 1, 0, 1));
-        // Draw current simplex
-        simplex.DrawSimplex(simplex);
-        //Draw search direction
-        DrawGJKDirection(dir);
+        simplex.push_front(sp);
 
-        // Process simplex; dir will be updated
+        // Optional debug drawing
+        // Debug::DrawBox(glm::translate(glm::mat4(1.0f), sp.point) * glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)), glm::vec4(1,1,0,1));
+        // simplex.DrawSimplex(glm::vec4(1,0,1,1));
+
+        // Update simplex and direction
         if (DoSimplex(simplex, dir))
         {
-            return true; // Origin inside → collision
+            glm::vec3 sum(0.0f);
+            for (auto& pt : simplex.pts)
+                sum += pt.pointA;  // average the contributing points on A
+            outCollisionPoint = sum / float(simplex.pts.size());
+            // Collision found, simplex contains last tetrahedron
+            return true;
         }
     }
 
-    return false; // rare fallback
+    return false;
 }
-
 glm::vec3 Physics::Support(const std::vector<glm::vec3>& verts, const glm::vec3& dir)
 {
     float best = -FLT_MAX;
@@ -117,51 +112,46 @@ glm::vec3 Physics::Support(const std::vector<glm::vec3>& verts, const glm::vec3&
     return bestV;
 }
 
-glm::vec3 Physics::SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir)
+Physics::SupportPoint Physics::SupportMinkowski(const std::vector<glm::vec3>& A, const std::vector<glm::vec3>& B, const glm::vec3& dir)
 {
-    return Support(A, dir) - Support(B, -dir);
+    glm::vec3 pA = Support(A, dir);   // support
+    glm::vec3 pB = Support(B, -dir);
+
+    SupportPoint sp;
+    sp.point = pA - pB;
+    sp.pointA = pA;
+    sp.pointB = pB;
+    return sp;
 }
 
 bool Physics::DoSimplex(Simplex& simplex, glm::vec3& dir)
 {
-    // Number of points in simplex
     switch (simplex.pts.size())
     {
-        // --------------------------
-        //       LINE (2 points)
-        // --------------------------
-    case 2:
+    case 2: // Line
     {
-        glm::vec3 a = simplex.pts[0];
-        glm::vec3 b = simplex.pts[1];
+        glm::vec3 a = simplex.pts[0].point;
+        glm::vec3 b = simplex.pts[1].point;
 
         glm::vec3 ab = b - a;
         glm::vec3 ao = -a;
 
-        // If AB still points toward origin → keep both points
         if (glm::dot(ab, ao) > 0)
-        {
-            // New direction is perpendicular to AB toward origin
             dir = glm::cross(glm::cross(ab, ao), ab);
-        }
         else
         {
-            // Remove B, keep only A
-            simplex.pts = { a };
+            simplex.pts = { simplex.pts[0] }; // keep only A
             dir = ao;
         }
 
         return false;
     }
 
-    // --------------------------
-    //     TRIANGLE (3 points)
-    // --------------------------
-    case 3:
+    case 3: // Triangle
     {
-        glm::vec3 a = simplex.pts[0];
-        glm::vec3 b = simplex.pts[1];
-        glm::vec3 c = simplex.pts[2];
+        glm::vec3 a = simplex.pts[0].point;
+        glm::vec3 b = simplex.pts[1].point;
+        glm::vec3 c = simplex.pts[2].point;
 
         glm::vec3 ab = b - a;
         glm::vec3 ac = c - a;
@@ -169,28 +159,22 @@ bool Physics::DoSimplex(Simplex& simplex, glm::vec3& dir)
 
         glm::vec3 abc = glm::cross(ab, ac);
 
-        // Check if origin is in region AB
         if (glm::dot(glm::cross(abc, ac), ao) > 0)
         {
-            simplex.pts = { a, c };
+            simplex.pts = { simplex.pts[0], simplex.pts[2] };
             dir = glm::cross(glm::cross(ac, ao), ac);
         }
-        // Check if origin is in region AC
         else if (glm::dot(glm::cross(ab, abc), ao) > 0)
         {
-            simplex.pts = { a, b };
+            simplex.pts = { simplex.pts[0], simplex.pts[1] };
             dir = glm::cross(glm::cross(ab, ao), ab);
         }
         else
         {
-            // Origin is either above or below triangle
             if (glm::dot(abc, ao) > 0)
-            {
                 dir = abc;
-            }
             else
             {
-                // Flip winding to maintain correct orientation
                 std::swap(simplex.pts[1], simplex.pts[2]);
                 dir = -abc;
             }
@@ -198,15 +182,12 @@ bool Physics::DoSimplex(Simplex& simplex, glm::vec3& dir)
         return false;
     }
 
-    // --------------------------
-    //    TETRAHEDRON (4 points)
-    // --------------------------
-    case 4:
+    case 4: // Tetrahedron
     {
-        glm::vec3 a = simplex.pts[0];
-        glm::vec3 b = simplex.pts[1];
-        glm::vec3 c = simplex.pts[2];
-        glm::vec3 d = simplex.pts[3];
+        glm::vec3 a = simplex.pts[0].point;
+        glm::vec3 b = simplex.pts[1].point;
+        glm::vec3 c = simplex.pts[2].point;
+        glm::vec3 d = simplex.pts[3].point;
 
         glm::vec3 ao = -a;
 
@@ -218,30 +199,28 @@ bool Physics::DoSimplex(Simplex& simplex, glm::vec3& dir)
         glm::vec3 acd = glm::cross(ac, ad);
         glm::vec3 adb = glm::cross(ad, ab);
 
-        // Check each face if origin lies outside
         if (glm::dot(abc, ao) > 0)
         {
-            simplex.pts = { a, b, c };
+            simplex.pts = { simplex.pts[0], simplex.pts[1], simplex.pts[2] };
             dir = abc;
             return false;
         }
 
         if (glm::dot(acd, ao) > 0)
         {
-            simplex.pts = { a, c, d };
+            simplex.pts = { simplex.pts[0], simplex.pts[2], simplex.pts[3] };
             dir = acd;
             return false;
         }
 
         if (glm::dot(adb, ao) > 0)
         {
-            simplex.pts = { a, d, b };
+            simplex.pts = { simplex.pts[0], simplex.pts[3], simplex.pts[1] };
             dir = adb;
             return false;
         }
 
-        // Origin is inside the tetrahedron → COLLISION
-        return true;
+        return true; // origin inside tetrahedron
     }
     }
 
@@ -339,10 +318,127 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
             rayproperties.AABBnormalEnd.x,
             rayproperties.AABBnormalEnd.y,
             rayproperties.AABBnormalEnd.z);*/
-    }
 
+     
+    }
+    //this bool is for change color
+    aabb.ishit = hit;
 
     return hit;
+}
+bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<glm::vec3>& vertsA, const std::vector<glm::vec3>& vertsB, glm::vec3& outNormal, float& outPenetration, glm::vec3& outPoint)
+{
+    if (simplex.size() != 4)
+        return false;
+
+    std::vector<EPAFace> faces;
+    faces.emplace_back(simplex[0], simplex[1], simplex[2]);
+    faces.emplace_back(simplex[0], simplex[3], simplex[1]);
+    faces.emplace_back(simplex[0], simplex[2], simplex[3]);
+    faces.emplace_back(simplex[1], simplex[3], simplex[2]);
+
+    const float tolerance = 0.0001f;
+    const int maxIterations = 50;
+    int iterations = 0;
+
+    while (iterations < maxIterations && !faces.empty())
+    {
+        // 1. Find face closest to origin
+        auto closestIt = std::min_element(faces.begin(), faces.end(),
+            [](const EPAFace& a, const EPAFace& b) { return a.distance < b.distance; });
+        EPAFace& closestFace = *closestIt;
+
+        // 2. Get new support point in face normal direction
+        SupportPoint newPoint = SupportMinkowski(vertsA, vertsB, closestFace.normal);
+        float newDist = glm::dot(newPoint.point, closestFace.normal);
+
+        // Check termination
+        if (newDist - closestFace.distance < tolerance)
+        {
+            outNormal = closestFace.normal;
+            outPenetration = newDist;
+
+            // Approximate contact point on object A
+            outPoint = (closestFace.a.pointA + closestFace.b.pointA + closestFace.c.pointA) / 3.0f;
+            return true;
+        }
+
+        // 3. Find all faces visible from new point
+        std::vector<int> visibleFaces;
+        for (int i = 0; i < faces.size(); ++i)
+        {
+            if (glm::dot(faces[i].normal, newPoint.point - faces[i].a.point) > 0.0f)
+                visibleFaces.push_back(i);
+        }
+
+        if (visibleFaces.empty())
+        {
+            // No visible faces, cannot expand further
+            break;
+        }
+
+        // 4. Build horizon edges (edges on boundary between visible and non-visible faces)
+        std::vector<std::pair<SupportPoint, SupportPoint>> horizonEdges;
+
+        auto edgeMatches = [](const std::pair<SupportPoint, SupportPoint>& e1,
+            const std::pair<SupportPoint, SupportPoint>& e2) -> bool
+            {
+                return (e1.first.point == e2.second.point && e1.second.point == e2.first.point);
+            };
+
+        for (int idx : visibleFaces)
+        {
+            EPAFace& f = faces[idx];
+            std::pair<SupportPoint, SupportPoint> edges[3] = { {f.a, f.b}, {f.b, f.c}, {f.c, f.a} };
+
+            for (auto& e : edges)
+            {
+                bool isShared = false;
+                for (int vidx : visibleFaces)
+                {
+                    if (vidx == idx) continue;
+                    EPAFace& other = faces[vidx];
+                    std::pair<SupportPoint, SupportPoint> otherEdges[3] = { {other.a, other.b}, {other.b, other.c}, {other.c, other.a} };
+                    for (auto& oe : otherEdges)
+                    {
+                        if (edgeMatches(e, oe))
+                        {
+                            isShared = true;
+                            break;
+                        }
+                    }
+                    if (isShared) break;
+                }
+                if (!isShared)
+                    horizonEdges.push_back(e);
+            }
+        }
+
+        // 5. Remove visible faces
+        std::sort(visibleFaces.rbegin(), visibleFaces.rend());
+        for (int idx : visibleFaces)
+            faces.erase(faces.begin() + idx);
+
+        // 6. Create new faces from horizon edges and new point
+        for (auto& edge : horizonEdges)
+        {
+            EPAFace newFace(edge.first, edge.second, newPoint);
+
+            // Ensure normal points away from origin
+            if (glm::dot(newFace.normal, newFace.a.point) < 0.0f)
+            {
+                std::swap(newFace.b, newFace.c);
+                newFace.normal = -newFace.normal;
+                newFace.distance = -newFace.distance;
+            }
+
+            faces.push_back(newFace);
+        }
+
+        iterations++;
+    }
+
+    return false; // Failed to converge
 }
 void Physics::DrawGJKDirection(const glm::vec3& dir, const glm::vec3& origin, const glm::vec4& color)
 {
@@ -395,7 +491,6 @@ void Physics::LoadFromIndexBuffer(fx::gltf::Document doc, std::vector<Physics::C
 }
 
 
-
 void Physics::AABB::Expand(const glm::vec3& point)
 {
     min = glm::min(min, point);
@@ -403,6 +498,8 @@ void Physics::AABB::Expand(const glm::vec3& point)
 }
 Physics::AABB::AABB() : min(std::numeric_limits<float>::max()),max(std::numeric_limits<float>::lowest())
 {
+    owner = nullptr;
+    ishit = false;
 }
 
 glm::vec3 Physics::AABB::GetABBCenter() const
@@ -421,14 +518,14 @@ void Physics::ColliderMesh::Triangle::SetSelected(bool s)
 
     color = selected ? selectedColor : og_color;
 }
-
-void SortingAlgorithm::Merge(std::vector<Physics::AABB>& arr, int left, int mid, int right)
+template<typename T>
+void SortingAlgorithm::Merge(std::vector<T>& arr, int left, int mid, int right)
 {
     int n1 = mid - left + 1;
     int n2 = right - mid;
 
-    std::vector<Physics::AABB> L(n1);
-    std::vector<Physics::AABB> R(n2);
+    std::vector<T> L(n1);
+    std::vector<T> R(n2);
 
     for (int i = 0; i < n1; i++)
         L[i] = arr[left + i];
@@ -468,8 +565,8 @@ void SortingAlgorithm::Merge(std::vector<Physics::AABB>& arr, int left, int mid,
         k++;
     }
 }
-
-void SortingAlgorithm::MergeSort(std::vector<Physics::AABB>& arr, int left, int right)
+template<typename T>
+void SortingAlgorithm::MergeSort(std::vector<T>& arr, int left, int right)
 {
     if (left < right)
     {
@@ -481,9 +578,9 @@ void SortingAlgorithm::MergeSort(std::vector<Physics::AABB>& arr, int left, int 
     }
 }
 
-void Physics::Simplex::push_front(const glm::vec3& p)
+void Physics::Simplex::push_front(const SupportPoint& sp)
 {
-    pts.insert(pts.begin(), p);
+    pts.insert(pts.begin(), sp);
 }
 void Physics::Simplex::DrawSimplex(const Simplex& simplex, const glm::vec4& color)
 {
@@ -492,7 +589,19 @@ void Physics::Simplex::DrawSimplex(const Simplex& simplex, const glm::vec4& colo
     {
         for (int j = i + 1; j < simplex.pts.size(); j++)
         {
-            Debug::DrawLine(simplex.pts[i], simplex.pts[j], 2.0f, color, color);
+            Debug::DrawLine(simplex.pts[i].point, simplex.pts[j].point, 2.0f, color, color);
         }
+    }
+}
+
+inline Physics::EPAFace::EPAFace(const SupportPoint& pa, const SupportPoint& pb, const SupportPoint& pc) : a(pa), b(pb), c(pc)
+{
+    normal = glm::normalize(glm::cross(b.point - a.point, c.point - a.point));
+    distance = glm::dot(normal, a.point);
+    if (distance < 0.0f)
+    {
+        normal = -normal;
+        distance = -distance;
+        std::swap(b, c);
     }
 }
