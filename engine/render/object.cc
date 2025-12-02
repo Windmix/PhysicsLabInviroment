@@ -356,7 +356,9 @@ void Object::Integrate(float dt)
     Core::CVar* r_freeze_rot = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_rot", "0");
     int freezeRotBool = Core::CVarReadInt(r_freeze_rot);
    
-
+    // Save previous state for interpolation
+    previousPosition = position;
+    previousOrientation = orientation;
 
     // --- LINEAR MOTION ---
     // Semi-implicit Euler

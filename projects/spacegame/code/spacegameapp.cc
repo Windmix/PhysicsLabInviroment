@@ -25,6 +25,7 @@
 #include "string.h"
 #include "render/object.h"
 
+
 using namespace Display;
 using namespace Render;
 
@@ -126,6 +127,9 @@ SpaceGameApp::Run()
     glm::vec3 v3(-1.0f, 0.0f, 1.0f);
     std::vector<Quad> Quads;
 
+    double fixedDt = 0.01667;
+    float accumulator = 0.0f;
+
 
     for (int i = 0; i < 10; i++)
     {
@@ -159,7 +163,7 @@ SpaceGameApp::Run()
         Object obj;
         if (i == 0)
         {
-            obj.mass = 2000000.0f;
+            obj.mass = 100000.0f;
 
             std::string filePath = "assets/space/Cube.glb";
             obj.createObject(filePath);
@@ -257,6 +261,7 @@ SpaceGameApp::Run()
     auto CvarDrawAABB = Core::CVarCreate(Core::CVarType::CVar_Int, "r_draw_AABB", "0");
 
 
+  
     //------------------------------------------------------------------------------------------------------------
     while (this->window->IsOpen())// game loop
     {
@@ -278,7 +283,6 @@ SpaceGameApp::Run()
         {
             glfwSetInputMode(this->window->window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
-
         if (kbd->pressed[Input::Key::Code::End])
         {
             ShaderResource::ReloadShaders();
@@ -303,157 +307,331 @@ SpaceGameApp::Run()
         bool cvarDrawAABB = Core::CVarReadInt(CvarDrawAABB);
         //-------------------------------------------------------------------------------------------------------------
 
-        
-
-        for (int i = 0; i < globalData.phyiscsObjects.size(); i++) // renderloop
+        accumulator += dt;
+       // fake  interpolation
+        while (accumulator >= fixedDt)
         {
-
-            // Physics first
-            globalData.phyiscsObjects[i].calculateCenterOfMass();
-
-            if(freezeRotBool == 0)
-                globalData.phyiscsObjects[i].drawAnglularAxis(globalData.phyiscsObjects[i].angularVelocity);
-
-            if (applyGravity == 1)
+            for (int i = 0; i < globalData.phyiscsObjects.size(); i++) // renderloop
             {
-                globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
-            }
-            
-            if (freezePosBool == 0 || freezeRotBool == 0)
-            {
-                globalData.phyiscsObjects[i].Integrate(dt);
-            }
-            // Update AABB after moving
-            globalData.phyiscsObjects[i].UpdateAABBObject();
+                // Physics first
+                globalData.phyiscsObjects[i].calculateCenterOfMass();
 
 
-           
-            //also collect all objects
-            std::vector<Physics::AABB> sweepAABBEntries;
 
-
-            for (auto& obj : globalData.phyiscsObjects)
-            {
-                sweepAABBEntries.push_back(obj.aabb);
-            }
-            //contains all pairs of AABBs that overlap in 3D space
-            //Broad-phase collision detection 
-            std::vector<std::pair<Physics::AABB, Physics::AABB>> candidates;
-            candidates = Physics::PlaneSweepOverlaps(sweepAABBEntries);
-
-            //Narrow-phase collision detection and response
-            for (auto& pair : candidates)
-            {
-                Object* objA = pair.first.owner;
-                Object* objB = pair.second.owner;
-
-                // Broad-phase
-                if (Physics::CheckAABBCollision(pair.first, pair.second))
+                if (applyGravity == 1)
                 {
-                    // Narrow-phase
-                    const std::vector<glm::vec3>& vertsA = objA->GetWorldVertices();
-                    const std::vector<glm::vec3>& vertsB = objB->GetWorldVertices();
+                    //Newton’s Law of Gravity, using first cube as a planet with big mass.
 
-                    globalData.phyiscsObjects[i].aabb.ishit = true;
-
-                    //collision chekc for object A
-                    Physics::ColliderMesh::Triangle* closestTri = nullptr;
-                    float minDist = FLT_MAX;
-
-                    // Loop through all triangles of objA
-                    for (auto& tri : objA->triangles)
+                    for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
                     {
-                        // Use precomputed world-space verts
-                        glm::vec3 v0 = glm::vec3(objA->transform * glm::vec4(tri.verticies[0], 1.0f));
-                        glm::vec3 v1 = glm::vec3(objA->transform * glm::vec4(tri.verticies[1], 1.0f));
-                        glm::vec3 v2 = glm::vec3(objA->transform * glm::vec4(tri.verticies[2], 1.0f));
-
-                        std::vector<glm::vec3> triVerts = { v0, v1, v2 };
-                        glm::vec3 center = (v0 + v1 + v2) / 3.0f;
-
-                     
-                        glm::vec3 collisionPoint;
-                        // Run GJK to check for collision
-                        Physics::Simplex simplex;
-                        if (Physics::GJK_Intersect(triVerts, vertsB, simplex, collisionPoint))
+                        for (int j = 0; j < globalData.phyiscsObjects.size(); j++)
                         {
-                            // Collision detected, run EPA
-                            glm::vec3 normal;
-                            glm::vec3 contactPoint;
-                            float penetration;
+                            if (i == j) continue;
+                            globalData.phyiscsObjects[i].ApplyGravityFrom(globalData.phyiscsObjects[j]);
+                            globalData.phyiscsObjects[i].Integrate(fixedDt);
 
-                            if (Physics::EPA(simplex.pts, vertsA, vertsB, normal, penetration, contactPoint))
-                            {
-                                // Now we know EPA succeeded, so we can use these values
-
-                                float dist = glm::length(center - contactPoint);
-                                if (dist < minDist)
-                                {
-                                    minDist = dist;
-                                    closestTri = &tri;
-                                }
-
-                                float restitution = 0.1f;
-                                glm::vec3 n = glm::normalize(normal);
-
-                                glm::vec3 relativeVel = objB->velocity - objA->velocity;
-                                float velIntoNormal = glm::dot(relativeVel, n);
-
-                                if (velIntoNormal < 0.0f)
-                                {
-                                    float invMassA = 1.0f / objA->totalMass;
-                                    float invMassB = 1.0f / objB->totalMass;
-
-                                    float j = -(1 + restitution) * velIntoNormal / (invMassA + invMassB);
-
-                                    glm::vec3 impulse = n * j * 1.9f;
-
-                                    glm::vec3 forceFromImpulseA = -glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
-                                    glm::vec3 forceFromImpulseB = glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
-
-                                   
-                                    objB->ApplyForce(forceFromImpulseB, contactPoint);
-                                   // objA->ApplyForce(forceFromImpulseB, contactPoint);
-                                }
-
-                                // Draw contact point and normal
-                                Debug::DrawLine(contactPoint, contactPoint - normal, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
-                            }
                         }
+
+                    }
+
+                    // globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
+                }
+
+
+                if (freezePosBool == 0 || freezeRotBool == 0)
+                {
+                    globalData.phyiscsObjects[i].Integrate(dt);
+                }
+                // Update AABB after moving
+                globalData.phyiscsObjects[i].UpdateAABBObject();
+
+
+                //also collect all objects
+                std::vector<Physics::AABB> sweepAABBEntries;
+                for (auto& obj : globalData.phyiscsObjects)
+                {
+                    sweepAABBEntries.push_back(obj.aabb);
+                }
+                //contains all pairs of AABBs that overlap in 3D space
+                //Broad-phase collision detection 
+                std::vector<std::pair<Physics::AABB, Physics::AABB>> candidates;
+                candidates = Physics::PlaneSweepOverlaps(sweepAABBEntries);
+
+                //Narrow-phase collision detection and response
+                for (auto& pair : candidates)
+                {
+                    Object* objA = pair.first.owner;
+                    Object* objB = pair.second.owner;
+
+                    // Broad-phase
+                    if (Physics::CheckAABBCollision(pair.first, pair.second))
+                    {
+                        // Narrow-phase
+                        const std::vector<glm::vec3>& vertsA = objA->GetWorldVertices();
+                        const std::vector<glm::vec3>& vertsB = objB->GetWorldVertices();
+
+                        globalData.phyiscsObjects[i].aabb.ishit = true;
+
+                        //collision chekc for object A
+                        Physics::ColliderMesh::Triangle* closestTri = nullptr;
+                        float minDist = FLT_MAX;
+
+                        // Loop through all triangles of objA
+                        for (auto& tri : objA->triangles)
+                        {
+                            // Use precomputed world-space verts
+                            glm::vec3 v0 = glm::vec3(objA->transform * glm::vec4(tri.verticies[0], 1.0f));
+                            glm::vec3 v1 = glm::vec3(objA->transform * glm::vec4(tri.verticies[1], 1.0f));
+                            glm::vec3 v2 = glm::vec3(objA->transform * glm::vec4(tri.verticies[2], 1.0f));
+
+                            std::vector<glm::vec3> triVerts = { v0, v1, v2 };
+                            glm::vec3 center = (v0 + v1 + v2) / 3.0f;
+
+
+                            glm::vec3 collisionPoint;
+                            // Run GJK to check for collision
+                            Physics::Simplex simplex;
+                            if (Physics::GJK_Intersect(triVerts, vertsB, simplex, collisionPoint))
+                            {
+                                // Collision detected, run EPA
+                                glm::vec3 normal;
+                                glm::vec3 contactPoint;
+                                float penetration;
+
+                                if (Physics::EPA(simplex.pts, vertsA, vertsB, normal, penetration, contactPoint))
+                                {
+                                    // Now we know EPA succeeded, so we can use these values
+
+                                    float dist = glm::length(center - contactPoint);
+                                    if (dist < minDist)
+                                    {
+                                        minDist = dist;
+                                        closestTri = &tri;
+                                    }
+
+                                    float restitution = 0.1f;
+                                    glm::vec3 n = glm::normalize(normal);
+
+                                    glm::vec3 relativeVel = objB->velocity - objA->velocity;
+                                    float velIntoNormal = glm::dot(relativeVel, n);
+
+                                    if (velIntoNormal < 0.0f)
+                                    {
+                                        float invMassA = 1.0f / objA->totalMass;
+                                        float invMassB = 1.0f / objB->totalMass;
+
+                                        float j = -(1 + restitution) * velIntoNormal / (invMassA + invMassB);
+
+                                        glm::vec3 impulse = n * j * 1.9f;
+
+                                        glm::vec3 forceFromImpulseA = -glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+                                        glm::vec3 forceFromImpulseB = glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+
+
+                                        objB->ApplyForce(forceFromImpulseB, contactPoint);
+                                        // objA->ApplyForce(forceFromImpulseB, contactPoint);
+                                    }
+
+                                    // Draw contact point and normal
+                                    Debug::DrawLine(contactPoint, contactPoint - normal, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+                                }
+                            }
                             //Draw a small box at the collision point
                             glm::mat4 boxTransform = glm::mat4(0.1f);
                             boxTransform = glm::translate(boxTransform, collisionPoint);
                             boxTransform = glm::scale(boxTransform, glm::vec3(0.2f)); // small cube
                             Debug::DrawBox(boxTransform, glm::vec4(1, 0, 0, 1)); // red box
+                        }
+                        if (closestTri) closestTri->SetSelected(true);
+
+
+
                     }
-                    if (closestTri) closestTri->SetSelected(true);
+                    else
+                    {
+                        globalData.phyiscsObjects[i].aabb.ishit = false;
+                    }
 
-
-                       
                 }
-                else
-                {
-                    globalData.phyiscsObjects[i].aabb.ishit = false;
-                }
+                accumulator -= fixedDt;
             }
 
-            // Draw AABB
+            float alpha = accumulator / dt;
+
+            // --- Rendering with interpolation ---
+            for (auto& obj : globalData.phyiscsObjects)
+            {
+                // Interpolate position and rotation
+                glm::vec3 renderPos = glm::mix(obj.previousPosition, obj.position, alpha);
+                glm::quat renderRot = glm::slerp(obj.previousOrientation, obj.orientation, alpha);
+
+                obj.transform = glm::translate(glm::mat4(1.0f), renderPos) * glm::mat4(renderRot);
+
+            }
+        }
+
+        ////real simulation
+        //for (int i = 0; i < globalData.phyiscsObjects.size(); i++) // renderloop
+        //{
+        //    // Physics first
+        //    globalData.phyiscsObjects[i].calculateCenterOfMass();
+
+
+
+        //    if (applyGravity == 1)
+        //    {
+        //        //Newton’s Law of Gravity, using first cube as a planet with big mass.
+
+        //        for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
+        //        {
+        //            for (int j = 0; j < globalData.phyiscsObjects.size(); j++)
+        //            {
+        //                if (i == j) continue;
+        //                globalData.phyiscsObjects[i].ApplyGravityFrom(globalData.phyiscsObjects[j]);
+        //                globalData.phyiscsObjects[i].Integrate(dt);
+
+        //            }
+
+        //        }
+
+        //        // globalData.phyiscsObjects[i].ApplyGravityForce(gravityDirection);
+        //    }
+
+
+        //    if (freezePosBool == 0 || freezeRotBool == 0)
+        //    {
+        //        globalData.phyiscsObjects[i].Integrate(dt);
+        //    }
+        //    // Update AABB after moving
+        //    globalData.phyiscsObjects[i].UpdateAABBObject();
+
+
+        //    //also collect all objects
+        //    std::vector<Physics::AABB> sweepAABBEntries;
+        //    for (auto& obj : globalData.phyiscsObjects)
+        //    {
+        //        sweepAABBEntries.push_back(obj.aabb);
+        //    }
+        //    //contains all pairs of AABBs that overlap in 3D space
+        //    //Broad-phase collision detection 
+        //    std::vector<std::pair<Physics::AABB, Physics::AABB>> candidates;
+        //    candidates = Physics::PlaneSweepOverlaps(sweepAABBEntries);
+
+        //    //Narrow-phase collision detection and response
+        //    for (auto& pair : candidates)
+        //    {
+        //        Object* objA = pair.first.owner;
+        //        Object* objB = pair.second.owner;
+
+        //        // Broad-phase
+        //        if (Physics::CheckAABBCollision(pair.first, pair.second))
+        //        {
+        //            // Narrow-phase
+        //            const std::vector<glm::vec3>& vertsA = objA->GetWorldVertices();
+        //            const std::vector<glm::vec3>& vertsB = objB->GetWorldVertices();
+
+        //            globalData.phyiscsObjects[i].aabb.ishit = true;
+
+        //            //collision chekc for object A
+        //            Physics::ColliderMesh::Triangle* closestTri = nullptr;
+        //            float minDist = FLT_MAX;
+
+        //            // Loop through all triangles of objA
+        //            for (auto& tri : objA->triangles)
+        //            {
+        //                // Use precomputed world-space verts
+        //                glm::vec3 v0 = glm::vec3(objA->transform * glm::vec4(tri.verticies[0], 1.0f));
+        //                glm::vec3 v1 = glm::vec3(objA->transform * glm::vec4(tri.verticies[1], 1.0f));
+        //                glm::vec3 v2 = glm::vec3(objA->transform * glm::vec4(tri.verticies[2], 1.0f));
+
+        //                std::vector<glm::vec3> triVerts = { v0, v1, v2 };
+        //                glm::vec3 center = (v0 + v1 + v2) / 3.0f;
+
+
+        //                glm::vec3 collisionPoint;
+        //                // Run GJK to check for collision
+        //                Physics::Simplex simplex;
+        //                if (Physics::GJK_Intersect(triVerts, vertsB, simplex, collisionPoint))
+        //                {
+        //                    // Collision detected, run EPA
+        //                    glm::vec3 normal;
+        //                    glm::vec3 contactPoint;
+        //                    float penetration;
+
+        //                    if (Physics::EPA(simplex.pts, vertsA, vertsB, normal, penetration, contactPoint))
+        //                    {
+        //                        // Now we know EPA succeeded, so we can use these values
+
+        //                        float dist = glm::length(center - contactPoint);
+        //                        if (dist < minDist)
+        //                        {
+        //                            minDist = dist;
+        //                            closestTri = &tri;
+        //                        }
+
+        //                        float restitution = 0.1f;
+        //                        glm::vec3 n = glm::normalize(normal);
+
+        //                        glm::vec3 relativeVel = objB->velocity - objA->velocity;
+        //                        float velIntoNormal = glm::dot(relativeVel, n);
+
+        //                        if (velIntoNormal < 0.0f)
+        //                        {
+        //                            float invMassA = 1.0f / objA->totalMass;
+        //                            float invMassB = 1.0f / objB->totalMass;
+
+        //                            float j = -(1 + restitution) * velIntoNormal / (invMassA + invMassB);
+
+        //                            glm::vec3 impulse = n * j * 1.9f;
+
+        //                            glm::vec3 forceFromImpulseA = -glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+        //                            glm::vec3 forceFromImpulseB = glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+
+
+        //                            objB->ApplyForce(forceFromImpulseB, contactPoint);
+        //                            // objA->ApplyForce(forceFromImpulseB, contactPoint);
+        //                        }
+
+        //                        // Draw contact point and normal
+        //                        Debug::DrawLine(contactPoint, contactPoint - normal, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
+        //                    }
+        //                }
+        //                //Draw a small box at the collision point
+        //                glm::mat4 boxTransform = glm::mat4(0.1f);
+        //                boxTransform = glm::translate(boxTransform, collisionPoint);
+        //                boxTransform = glm::scale(boxTransform, glm::vec3(0.2f)); // small cube
+        //                Debug::DrawBox(boxTransform, glm::vec4(1, 0, 0, 1)); // red box
+        //            }
+        //            if (closestTri) closestTri->SetSelected(true);
+
+
+
+        //        }
+        //        else
+        //        {
+        //            globalData.phyiscsObjects[i].aabb.ishit = false;
+        //        }
+
+        //    }
+        //}
+        for (auto& obj : globalData.phyiscsObjects) // slow render
+        {
+            if (freezeRotBool == 0)
+                obj.drawAnglularAxis(obj.angularVelocity);
+
+            // Draw the object and AABB
+            obj.drawObject();
+
             if (cvarDrawAABB)
+                obj.DrawAABBOnObject();
+
+            // Draw triangles
+            for (auto& tri : obj.triangles)
             {
-                globalData.phyiscsObjects[IdDrawABB].DrawAABBOnObject();
-            }
+                glm::vec3 v0 = glm::vec3(obj.transform * glm::vec4(tri.verticies[0], 1.0f));
+                glm::vec3 v1 = glm::vec3(obj.transform * glm::vec4(tri.verticies[1], 1.0f));
+                glm::vec3 v2 = glm::vec3(obj.transform * glm::vec4(tri.verticies[2], 1.0f));
 
-            // Draw the object at new position
-            globalData.phyiscsObjects[i].drawObject();
-
-            // Draw triangles with applied transform
-            for (auto& tri : globalData.phyiscsObjects[i].triangles)
-            {
-                glm::vec3 v0 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[0], 1.0f));
-                glm::vec3 v1 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[1], 1.0f));
-                glm::vec3 v2 = glm::vec3(globalData.phyiscsObjects[i].transform * glm::vec4(tri.verticies[2], 1.0f));
-
-                //if triangle is hit by ray, it will recolor it
                 if (tri.selected)
                     Debug::DrawTriangle(v0, v1, v2, glm::vec4(0, 1, 1, 1), Debug::AlwaysOnTop, 2.0f);
                 else
@@ -462,32 +640,6 @@ SpaceGameApp::Run()
                 tri.SetSelected(false);
             }
         }
-        //for (int i = 0; i < globalData.phyiscsObjects2.size(); i++)
-        //{
-
-
-        //    globalData.phyiscsObjects2[i].Integrate(dt);
-        //    //Draw model
-        //    globalData.phyiscsObjects2[i].drawObject();
-
-
-        //}
-
-        //Newton’s Law of Gravity, using first cube as a planet with big mass.
-
-        for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
-        {
-            for (int j = 0; j < globalData.phyiscsObjects.size(); j++)
-            {
-                if (i == j) continue;
-                globalData.phyiscsObjects[i].ApplyGravityFrom(globalData.phyiscsObjects[j]);
-                globalData.phyiscsObjects[j].Integrate(dt);
-
-            }
-
-        }
-       
-
         int hitIndex = -1;
         float closestDistance = std::numeric_limits<float>::max(); // give largest value as possible
 
@@ -522,7 +674,6 @@ SpaceGameApp::Run()
                 }
             }
         }
-      
         // After loop, only one hit
         if (hitIndex != -1 && drawRay != false)
         {
@@ -589,7 +740,9 @@ SpaceGameApp::Run()
 
         auto timeEnd = std::chrono::steady_clock::now();
         dt = std::min(0.04, std::chrono::duration<double>(timeEnd - timeStart).count());
+     
 
+       
         if (kbd->pressed[Input::Key::Code::Escape])
             this->Exit();
 	}
