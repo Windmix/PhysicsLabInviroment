@@ -28,6 +28,8 @@ Object::Object()
     inertiaTensor = glm::mat3(0);
     totalMeshArea = 0.0f;
     inertiaTensorInv = glm::mat3(0);
+    previousOrientation = glm::quat();
+    previousPosition = glm::vec3(0);
 
 
 

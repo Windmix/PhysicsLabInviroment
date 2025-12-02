@@ -17,6 +17,11 @@ public:
 
 	MathPlane plane;
 
+	//interpolation
+	glm::vec3 previousPosition;
+	glm::quat previousOrientation;
+
+
 	// Store triangles
 	std::vector<Physics::ColliderMesh::Triangle> triangles;
 
@@ -49,6 +54,7 @@ public:
 	// Inertia
 	float mass;
 	float totalMass;
+	float invMass;
 	glm::vec3 centerOfMass;
 
 	glm::mat3 inertiaTensor;

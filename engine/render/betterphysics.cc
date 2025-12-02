@@ -326,6 +326,7 @@ bool Physics::CheckRayHitAABB(AABB& aabb, MathRay& ray, RayProperties& rayproper
 
     return hit;
 }
+
 bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<glm::vec3>& vertsA, const std::vector<glm::vec3>& vertsB, glm::vec3& outNormal, float& outPenetration, glm::vec3& outPoint)
 {
     if (simplex.size() != 4)

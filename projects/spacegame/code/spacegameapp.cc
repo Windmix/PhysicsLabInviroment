@@ -1,4 +1,4 @@
-//------------------------------------------------------------------------------
+﻿//------------------------------------------------------------------------------
 // spacegameapp.cc
 // (C) 2022 Individual contributors, see AUTHORS file
 //------------------------------------------------------------------------------
@@ -152,37 +152,69 @@ SpaceGameApp::Run()
 
 
     ObjectGlobalData& globalData = ObjectGlobalData::GetInstance();
-    globalData.ammountOfObjects = 4;
+    globalData.ammountOfObjects = 10;
 
     for (int i = 0; i < globalData.ammountOfObjects; i++)
     {
-        Object obj; 
-        std::string filePath = "assets/space/Lowpolysphere.glb";
-        obj.createObject(filePath);
-
-        fx::gltf::Document doc;
-
-        if (filePath.substr(filePath.find_last_of(".") + 1) == "glb")
-            doc = fx::gltf::LoadFromBinary(filePath);
-        else
-            doc = fx::gltf::LoadFromText(filePath);
-
-        Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
-
-        obj.SetScale(glm::vec3(1.0f));
-
-        glm::vec3 startPos = glm::vec3(1 + i * 10.0f, 1 + i * 10.0f, 1 + i * 10.0f);
-        for (auto& tri : obj.triangles)
-        {
-            tri.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
-            tri.og_color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
-            tri.selectedColor = glm::vec4(1, 1, 0, 1);
-
-        }
+        Object obj;
         if (i == 0)
         {
-            obj.mass = 50000.0f;
+            obj.mass = 2000000.0f;
+
+            std::string filePath = "assets/space/Cube.glb";
+            obj.createObject(filePath);
+
+            fx::gltf::Document doc;
+
+            if (filePath.substr(filePath.find_last_of(".") + 1) == "glb")
+                doc = fx::gltf::LoadFromBinary(filePath);
+            else
+                doc = fx::gltf::LoadFromText(filePath);
+
+            Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
+
+            obj.SetScale(glm::vec3(10.0f));
+
+
+            for (auto& tri : obj.triangles)
+            {
+                tri.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+                tri.og_color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+                tri.selectedColor = glm::vec4(1, 1, 0, 1);
+
+            }
         }
+        else
+        {
+            std::string filePath = "assets/space/Lowpolysphere.glb";
+            obj.createObject(filePath);
+
+            fx::gltf::Document doc;
+
+            if (filePath.substr(filePath.find_last_of(".") + 1) == "glb")
+                doc = fx::gltf::LoadFromBinary(filePath);
+            else
+                doc = fx::gltf::LoadFromText(filePath);
+
+            Physics::LoadFromIndexBuffer(doc, obj.triangles, obj.aabb);
+
+            obj.SetScale(glm::vec3(1.0f));
+
+
+            for (auto& tri : obj.triangles)
+            {
+                tri.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+                tri.og_color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+                tri.selectedColor = glm::vec4(1, 1, 0, 1);
+
+            }
+        }
+
+       
+   
+        glm::vec3 startPos = glm::vec3(1, 1 + i * 30.0f, 1);
+
+       
     
         obj.SetOBjectPosition(startPos); 
         obj.UpdateAABBObject();
@@ -361,10 +393,28 @@ SpaceGameApp::Run()
                                     closestTri = &tri;
                                 }
 
-                                // Apply impulse along EPA normal at contact point
-                                float impulseStrength = 1000.0f;
-                                objA->ApplyForce(-normal * impulseStrength, contactPoint);
-                                objB->ApplyForce(normal * impulseStrength, contactPoint);
+                                float restitution = 0.1f;
+                                glm::vec3 n = glm::normalize(normal);
+
+                                glm::vec3 relativeVel = objB->velocity - objA->velocity;
+                                float velIntoNormal = glm::dot(relativeVel, n);
+
+                                if (velIntoNormal < 0.0f)
+                                {
+                                    float invMassA = 1.0f / objA->totalMass;
+                                    float invMassB = 1.0f / objB->totalMass;
+
+                                    float j = -(1 + restitution) * velIntoNormal / (invMassA + invMassB);
+
+                                    glm::vec3 impulse = n * j * 1.9f;
+
+                                    glm::vec3 forceFromImpulseA = -glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+                                    glm::vec3 forceFromImpulseB = glm::vec3(impulse.x / dt, impulse.y / dt, impulse.z / dt);
+
+                                   
+                                    objB->ApplyForce(forceFromImpulseB, contactPoint);
+                                   // objA->ApplyForce(forceFromImpulseB, contactPoint);
+                                }
 
                                 // Draw contact point and normal
                                 Debug::DrawLine(contactPoint, contactPoint - normal, 3.0f, glm::vec4(0, 0, 1, 1), glm::vec4(0, 1, 1, 1));
@@ -423,7 +473,7 @@ SpaceGameApp::Run()
 
         //}
 
-        //Newton�s Law of Gravity, using first cube as a planet with big mass.
+        //Newton’s Law of Gravity, using first cube as a planet with big mass.
 
         for (int i = 0; i < globalData.phyiscsObjects.size(); i++)
         {
