@@ -3,6 +3,7 @@
 #include "gltf.h"
 #include "debugrender.h"
 #include <core/cvar.h>
+#include <gtx/matrix_decompose.hpp>
 
 Object::Object()
 {
@@ -20,7 +21,7 @@ Object::Object()
     angularVelocity = glm::vec3(0.0f);
     accumulatedTorque = glm::vec3(0.0f);
     orientation = glm::quat(1, 0, 0, 0);
-    forceMagnitude = 20.0f;
+    forceMagnitude = 10000.0f;
     storedHitindex = -1;
     mass = 20.0f;
     totalMass = 0.0f;
@@ -122,6 +123,21 @@ std::vector<glm::vec3> Object::GetWorldVertices() const
         worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[0], 1.0f)));
         worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[1], 1.0f)));
         worldVerts.push_back(glm::vec3(transform * glm::vec4(tri.verticies[2], 1.0f)));
+    }
+
+    return worldVerts;
+}
+
+std::vector<glm::vec3> Object::GetWorldInterpolationVertices() const
+{
+    std::vector<glm::vec3> worldVerts;
+    worldVerts.reserve(triangles.size() * 3); // pre-allocate memory
+
+    for (const auto& tri : triangles)
+    {
+        worldVerts.push_back(glm::vec3(renderTransform * glm::vec4(tri.verticies[0], 1.0f)));
+        worldVerts.push_back(glm::vec3(renderTransform * glm::vec4(tri.verticies[1], 1.0f)));
+        worldVerts.push_back(glm::vec3(renderTransform * glm::vec4(tri.verticies[2], 1.0f)));
     }
 
     return worldVerts;
@@ -355,10 +371,6 @@ void Object::Integrate(float dt)
 
     Core::CVar* r_freeze_rot = Core::CVarCreate(Core::CVarType::CVar_Int, "r_freeze_rot", "0");
     int freezeRotBool = Core::CVarReadInt(r_freeze_rot);
-   
-    // Save previous state for interpolation
-    previousPosition = position;
-    previousOrientation = orientation;
 
     // --- LINEAR MOTION ---
     // Semi-implicit Euler
@@ -396,6 +408,27 @@ void Object::Integrate(float dt)
     torque = glm::vec3(0);
    
     
+}
+void Object::Interpolate(float alpha)
+{
+    // Decompose previousTransform
+    glm::vec3 prevPos, prevScale;
+    glm::quat prevRot;
+    glm::vec3 skew; glm::vec4 perspective;
+    glm::decompose(previousTransform, prevScale, prevRot, prevPos, skew, perspective);
+
+    // Decompose current transform
+    glm::vec3 currPos, currScale;
+    glm::quat currRot;
+    glm::decompose(transform, currScale, currRot, currPos, skew, perspective);
+
+    // Interpolate
+    glm::vec3 interpPos = glm::mix(prevPos, currPos, alpha);
+    glm::quat interpRot = glm::slerp(prevRot, currRot, alpha);
+    glm::vec3 interpScale = glm::mix(prevScale, currScale, alpha);
+
+    // Build visual transform
+    renderTransform = glm::translate(glm::mat4(1.0f), interpPos) * glm::mat4_cast(interpRot) * glm::scale(glm::mat4(1.0f), interpScale);
 }
 void Object::drawForceDirection(glm::vec3 intersect, glm::vec3 dir)
 {
@@ -510,7 +543,8 @@ void Object::calculateInertiaTensor()
 
 void Object::drawObject() const
 {
-	Render::RenderDevice::Draw(modelID, transform);
+	/*Render::RenderDevice::Draw(modelID, transform);
+    Render::RenderDevice::Draw(modelID, renderTransform);*/
 }
 
 void Object::SetScale(glm::vec3 _scale)

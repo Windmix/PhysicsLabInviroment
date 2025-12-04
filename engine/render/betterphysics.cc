@@ -344,12 +344,12 @@ bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<gl
 
     while (iterations < maxIterations && !faces.empty())
     {
-        // 1. Find face closest to origin
+        // Find face closest to origin
         auto closestIt = std::min_element(faces.begin(), faces.end(),
             [](const EPAFace& a, const EPAFace& b) { return a.distance < b.distance; });
         EPAFace& closestFace = *closestIt;
 
-        // 2. Get new support point in face normal direction
+        // Get new support point in face normal direction
         SupportPoint newPoint = SupportMinkowski(vertsA, vertsB, closestFace.normal);
         float newDist = glm::dot(newPoint.point, closestFace.normal);
 
@@ -359,12 +359,33 @@ bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<gl
             outNormal = closestFace.normal;
             outPenetration = newDist;
 
-            // Approximate contact point on object A
+            // Project origin onto the closest face
+            glm::vec3 p0 = closestFace.a.point;
+            glm::vec3 p1 = closestFace.b.point;
+            glm::vec3 p2 = closestFace.c.point;
+
+            glm::vec3 proj = -closestFace.distance * closestFace.normal; // origin projected onto triangle plane
+            glm::vec3 v0 = p1 - p0;
+            glm::vec3 v1 = p2 - p0;
+            glm::vec3 v2 = proj - p0;
+
+            float d00 = glm::dot(v0, v0);
+            float d01 = glm::dot(v0, v1);
+            float d11 = glm::dot(v1, v1);
+            float d20 = glm::dot(v2, v0);
+            float d21 = glm::dot(v2, v1);
+
+            float denom = d00 * d11 - d01 * d01;
+            float v = (d11 * d20 - d01 * d21) / denom;
+            float w = (d00 * d21 - d01 * d20) / denom;
+            float u = 1.0f - v - w;
+
+            // Interpolate contact point on object A using barycentric coordinates
             outPoint = (closestFace.a.pointA + closestFace.b.pointA + closestFace.c.pointA) / 3.0f;
             return true;
         }
 
-        // 3. Find all faces visible from new point
+        //  Find all faces visible from new point
         std::vector<int> visibleFaces;
         for (int i = 0; i < faces.size(); ++i)
         {
@@ -378,9 +399,8 @@ bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<gl
             break;
         }
 
-        // 4. Build horizon edges (edges on boundary between visible and non-visible faces)
+        //  Build horizon edges (edges on boundary between visible and non-visible faces)
         std::vector<std::pair<SupportPoint, SupportPoint>> horizonEdges;
-
         auto edgeMatches = [](const std::pair<SupportPoint, SupportPoint>& e1,
             const std::pair<SupportPoint, SupportPoint>& e2) -> bool
             {
@@ -415,12 +435,12 @@ bool Physics::EPA(const std::vector<SupportPoint>& simplex, const std::vector<gl
             }
         }
 
-        // 5. Remove visible faces
+        // Remove visible faces
         std::sort(visibleFaces.rbegin(), visibleFaces.rend());
         for (int idx : visibleFaces)
             faces.erase(faces.begin() + idx);
 
-        // 6. Create new faces from horizon edges and new point
+        // Create new faces from horizon edges and new point
         for (auto& edge : horizonEdges)
         {
             EPAFace newFace(edge.first, edge.second, newPoint);

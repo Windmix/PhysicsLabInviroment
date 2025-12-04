@@ -3,6 +3,7 @@
 #include "model.h"
 #include "betterphysics.h"
 #include "mathplane.h"
+#include <set>
 
 
 class Object
@@ -13,6 +14,8 @@ public:
 	Render::ModelId modelID;
 	glm::vec3 position;
 	glm::mat4 transform;
+	glm::mat4 previousTransform;  // updated per frame with interpolation
+	glm::mat4 renderTransform;
 	glm::vec3 scale;
 
 	MathPlane plane;
@@ -26,6 +29,7 @@ public:
 	std::vector<Physics::ColliderMesh::Triangle> triangles;
 
 	// Physics rigidbody 
+	std::set<Object*> collidedWithThisStep;
 	// 
 	// --- Linear ---
 	glm::vec3 velocity;
@@ -70,6 +74,7 @@ public:
 	void drawObject() const;
 	void DrawAABBOnObject();
 	std::vector<glm::vec3> GetWorldVertices() const;
+	std::vector<glm::vec3> GetWorldInterpolationVertices() const;
 
 	//ray checks
 	bool CheckRayHit(Object& myObj, MathRay& ray, Physics::RayProperties& rayproperties);
@@ -85,6 +90,7 @@ public:
 	void ApplyGravityFrom(Object& other);
 	void ApplyForce(const glm::vec3& force, glm::vec3& forcehitPoint); // apply force
 	void Integrate(float dt);
+	void Interpolate(float alpha);
 	void drawForceDirection(glm::vec3 intersect, glm::vec3 dir);
 	void drawAnglularAxis(glm::vec3 angularDir);
 	void RotateAxisAngle(const glm::vec3& axis, float angle);

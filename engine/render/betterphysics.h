@@ -86,6 +86,15 @@ namespace Physics
 
         EPAFace(const SupportPoint& pa, const SupportPoint& pb, const SupportPoint& pc);
     };
+
+    struct CollisionEvent
+    {
+        Object* objA;
+        Object* objB;
+        glm::vec3 contactPoint;
+        glm::vec3 normal;
+        float impulseMagnitude;
+    };
     
 
     //render
